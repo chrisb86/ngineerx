@@ -77,33 +77,38 @@ help () {
   exit $1
 }
 
-# Replace @@VARIABLENAME@@ in given default config file with $VARIABLENAME and write config file to specified location
-# Usage: write_config sourcefile targetfile
+# Replace @@VARIABLENAME@@ in given default config file with $VARIABLENAME and write config file to specified location. If no target file is given, replacing will happen inplace.
+# Usage: write_config sourcefile [targetfile]
 write_config () {
-  sed \
-    -e "s;@@dhkeysize@@;$dhkeysize;g" \
-    -e "s;@@etc_dir@@;$etc_dir;g" \
-    -e "s;@@le_keysize@@;$le_keysize;g" \
-    -e "s;@@le_email@@;$le_email;g" \
-    -e "s;@@letsencrypt_conf_dir@@;$letsencrypt_conf_dir;g" \
-    -e "s;@@letsencrypt_webroot@@;$letsencrypt_webroot;g" \
-    -e "s;@@ngineerx_conf_dir@@;$ngineerx_conf_dir;g" \
-    -e "s;@@ngineerx_webroot@@;$ngineerx_webroot;g" \
-    -e "s;@@nginx@@;$nginx;g" \
-    -e "s;@@nginx_conf_dir@@;$nginx_conf_dir;g" \
-    -e "s;@@nginx_domains@@;$nginx_domains;g" \
-    -e "s;@@nginx_user@@;$nginx_user;g" \
-    -e "s;@@nginxpid@@;$nginxpid;g" \
-    -e "s;@@php_pool_port@@;$php_pool_port;g" \
-    -e "s;@@php_user@@;$php_user;g" \
-    -e "s;@@phpfpm@@;$phpfpm;g" \
-    -e "s;@@phpfpm_conf_dir@@;$phpfpm_conf_dir;g" \
-    -e "s;@@phppid@@;$phppid;g" \
-    -e "s;@@server_ip@@;$server_ip;g" \
-    -e "s;@@site_domain@@;$site_domain;g" \
-    -e "s;@@site_root@@;$site_root;g" \
-    -e "s;@@site_webroot@@;$site_webroot;g" \
-  $1 > $2
+    sed_replace+=(-e "s;@@dhkeysize@@;$dhkeysize;g" )
+    sed_replace+=(-e "s;@@etc_dir@@;$etc_dir;g" )
+    sed_replace+=(-e "s;@@le_keysize@@;$le_keysize;g" )
+    sed_replace+=(-e "s;@@le_email@@;$le_email;g" )
+    sed_replace+=(-e "s;@@letsencrypt_conf_dir@@;$letsencrypt_conf_dir;g" )
+    sed_replace+=(-e "s;@@letsencrypt_webroot@@;$letsencrypt_webroot;g" )
+    sed_replace+=(-e "s;@@ngineerx_conf_dir@@;$ngineerx_conf_dir;g" )
+    sed_replace+=(-e "s;@@ngineerx_webroot@@;$ngineerx_webroot;g" )
+    sed_replace+=(-e "s;@@nginx@@;$nginx;g" )
+    sed_replace+=(-e "s;@@nginx_conf_dir@@;$nginx_conf_dir;g" )
+    sed_replace+=(-e "s;@@nginx_includes@@;$nginx_includes;g" )
+    sed_replace+=(-e "s;@@nginx_domains@@;$nginx_domains;g" )
+    sed_replace+=(-e "s;@@nginx_user@@;$nginx_user;g" )
+    sed_replace+=(-e "s;@@nginxpid@@;$nginxpid;g" )
+    sed_replace+=(-e "s;@@php_pool_port@@;$php_pool_port;g" )
+    sed_replace+=(-e "s;@@php_user@@;$php_user;g" )
+    sed_replace+=(-e "s;@@phpfpm@@;$phpfpm;g" )
+    sed_replace+=(-e "s;@@phpfpm_conf_dir@@;$phpfpm_conf_dir;g" )
+    sed_replace+=(-e "s;@@phppid@@;$phppid;g" )
+    sed_replace+=(-e "s;@@server_ip@@;$server_ip;g" )
+    sed_replace+=(-e "s;@@site_domain@@;$site_domain;g" )
+    sed_replace+=(-e "s;@@site_root@@;$site_root;g" )
+    sed_replace+=(-e "s;@@site_webroot@@;$site_webroot;g" )
+
+    if [ -z ${2+x} ]; then 
+        sed ${sed_replace[@]} -i "" $1
+    else 
+        sed ${sed_replace[@]} $1 > $2
+    fi
 }
 
 # Take the list of domains in array ${domain_args[@]} and echo them seperated by the specified separator as one string
@@ -185,6 +190,7 @@ letsencrypt_webroot="${letsencrypt_webroot:-$letsencrypt_conf_dir/.acme-challeng
 ngineerx_webroot="${ngineerx_webroot:-/usr/local/www}"
 nginx="${nginx:-$etc_dir/rc.d/nginx}"
 nginx_conf_dir="${nginx_conf_dir:-$etc_dir/nginx}"
+nginx_includes="${nginx_includes:-$nginx_conf_dir/includes}"
 nginx_user="${nginx_user:-www}"
 nginxpid="${nginxpid:-/var/run/nginx.pid}"
 openssl="${openssl:-/usr/bin/openssl}"
@@ -200,6 +206,7 @@ phpfpm="${phpfpm:-$etc_dir/rc.d/php-fpm}"
 phpfpm_conf_dir="${phpfpm_conf_dir:-$etc_dir/php/php-fpm.d}"
 phppid="${phppid:-/var/run/php-fpm.pid}"
 server_ip="${server_ip:-}"
+tmp_dir="${tmp_dir:-/tmp/ngineerx}"
 
 # Synopsis messages
 ngineerx_usage_ngineerx="Usage: $ngineerx [install|create|cert-create|cert-renew|delete|list|enable|disable|start|stop|restart|help] {params}"
@@ -246,18 +253,36 @@ install)
   mkdir -p $letsencrypt_webroot
   mkdir -p $etc_dir/letsencrypt.sh
 
-  echo "+++ Copying neccessary config files"
-  write_config $ngineerx_conf_dir/default.nginx.conf $nginx_conf_dir/nginx.conf
-  write_config $ngineerx_conf_dir/default.fastcgi_params $nginx_conf_dir/fastcgi_params
-  write_config $ngineerx_conf_dir/default.mime.types $nginx_conf_dir/mime.types
-  write_config $ngineerx_conf_dir/default.php-fpm.conf $etc_dir/php-fpm.conf
-  write_config $ngineerx_conf_dir/default.php.ini $etc_dir/php.ini
-  write_config $ngineerx_conf_dir/default.letsencrypt.sh.config.sh $letsencrypt_conf_dir/config.sh 
-  touch $letsencrypt_conf_dir/domains.txt
-  echo $php_pool_port > $ngineerx_conf_dir/php-fpm.ports.db
+  echo "+++ Creating neccessary config files"
 
-  echo "+++ Creating diffie hellman parameters with $dhkeysize bit keysize. This may take a long time."
-  $openssl dhparam -out $nginx_conf_dir/dhparam.pem $dhkeysize;
+  ## Copy template files to tmp
+  mkdir -p $tmp_dir
+  cp -r /usr/local/share/ngineerx/letsencrypt.sh $tmp_dir
+  cp -r /usr/local/share/ngineerx/nginx $tmp_dir
+  cp -r /usr/local/share/ngineerx/php* $tmp_dir
+
+  ## modify template files for concrete usage scenario
+  find $tmp_dir -type f | while read f; do
+    write_config $f
+  done
+
+  ## Copy config files to /usr/local/etc and delete tmp files
+  cp -r $tmp_dir/* $etc_dir && rm -r $tmp_dir
+
+  cp -r /usr/local/share/ngineerx/ngineerx/* $ngineerx_conf_dir
+
+  touch $letsencrypt_conf_dir/domains.txt
+
+  ## Create php-fpm.ports.db if it doesn't exist.
+  if [ ! -f "$ngineerx_conf_dir/php-fpm.ports.db" ]; then
+    echo $php_pool_port > $ngineerx_conf_dir/php-fpm.ports.db
+  fi
+  
+  ## Create dhparam.pem only if it doesn't exist.
+  if [ ! -f "$nginx_conf_dir/dhparam.pem" ]; then
+    echo "+++ Creating diffie hellman parameters with $dhkeysize bit keysize. This may take a long time."
+    $openssl dhparam -out $nginx_conf_dir/dhparam.pem $dhkeysize;
+  fi
 
   #[TODO]: Create CA for signing self-signed certs
 
@@ -558,6 +583,7 @@ unset ngineerx_usage_ngineerx
 unset ngineerx_webroot
 unset nginx
 unset nginx_conf_dir
+unset nginx_includes
 unset nginx_domains
 unset nginx_user
 unset nginxpid
@@ -584,7 +610,7 @@ unset site_flavour_dir
 unset site_flavour_nginx_conf
 unset site_flavour_phpfpm_pool_conf
 unset val
+unset tmp_dir
+unset sed_replace
 
 exit 0
-
-#[TODO]: Implement PHP7 (waiting for PHP7 in ports)
