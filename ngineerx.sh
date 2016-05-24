@@ -128,9 +128,11 @@ create_cert () {
   ## Create certs with letsencrypt
   if [ "$1" == "letsencrypt" ]; then
     echo "+++ Creating certificates with letsencrypt"
-    $letsencrypt -c $le_domains
+    ## Add domains to domains.txt
     echo $nginx_domains >> $letsencrypt_conf_dir/domains.txt
-  
+    ## Run cron renewal and create new certs
+    $letsencrypt -c
+
     cert_path="$letsencrypt_conf_dir/certs/$site_domain"
   fi
 
