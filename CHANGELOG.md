@@ -1,6 +1,9 @@
 #ngineerx
 
 ## Changelog:
+**2016-05-24:**
+- Added a Makefile. Run ``make install`` to update the repository and all submodules and install all the stuff where it belongs.
+
 **2016-05-23:**
 - Splitted nginx config to several files.
 

@@ -76,12 +76,11 @@ Clone the git repository to your machine.
 $ git clone https://github.com/chrisb86/ngineerx.git
 ```
 
-Put everything where it belongs:
+Install ngineerx:
 
 ```bash
 $ cd ngineerx
-$ cp -R etc/* /usr/local/etc/
-$ cp ngineerx.sh /usr/local/bin/ngineerx
+$ make install
 ```
 
 Check that all the settings in ``/usr/local/etc/ngineerx/ngineerx.conf`` are as you intend it (especially the server IP).
