@@ -62,6 +62,9 @@ help () {
   echo "  [-k PRIVKEY]                Path where privkey.pem should be linked to."
   echo "  [-f FULLCHAIN]              Path where fullchain.pem should be linked to."
   echo "cert-renew    Renew certificates with letsencrypt"
+  echo "htpasswd      Create htpasswd file for password authentication."
+  echo "  -u USERNAME                 The user that should be added"
+  echo "  -f FILE                     The file where credentials should be stored"
   echo "delete        Delete a site"
   echo "  -d DOMAINNAME               Domain that should be deleted"
   echo "list          Lists all avaliable sites and their webroots and php-fpm ports."
@@ -187,7 +190,7 @@ le_email="${le_email:-}"
 le_keysize="${le_keysize:-4096}"
 le_options="${le_options:---agree-tos}"
 letsencrypt_conf_dir="${letsencrypt_conf_dir:-$etc_dir/letsencrypt.sh}"
-letsencrypt="${letsencrypt:-$letsencrypt_conf_dir/letsencrypt.sh}"
+letsencrypt="${letsencrypt:-$letsencrypt_conf_dir/dehydrated}"
 letsencrypt_webroot="${letsencrypt_webroot:-$letsencrypt_conf_dir/.acme-challenges}"
 ngineerx_webroot="${ngineerx_webroot:-/usr/local/www}"
 nginx="${nginx:-$etc_dir/rc.d/nginx}"
@@ -217,6 +220,7 @@ ngineerx_usage_delete="Usage: $ngineerx delete -d DOMAINNAME"
 ngineerx_usage_enable="Usage: $ngineerx enable -d DOMAINNAME"
 ngineerx_usage_disable="Usage: $ngineerx disable -d DOMAINNAME"
 ngineerx_usage_cert_create="Usage: $ngineerx cert-create [-c letsencrypt|selfsigned] [-k PRIVKEY] [-f FULLCHAIN] -d DOMAINNAME"
+ngineerx_usage_htpasswd="Usage: $ngineerx htpasswd -u USER -f FILE"
 ngineerx_usage_list="Usage: $ngineerx list"
 
 # Check for command. If none is given, show help and exit with error.
@@ -381,7 +385,7 @@ create)
   ;;
 ######################## ngineerx CERT-CREATE ########################
 cert-create)
-   shift; while getopts :d:c:f:w: arg; do case ${arg} in
+  shift; while getopts :d:c:f:w: arg; do case ${arg} in
     d) domain_args+=("$OPTARG");;
     c) cert_type=${OPTARG};;
     k) cert_privkey=${OPTARG};;
@@ -411,6 +415,18 @@ cert-renew)
   #[TODO]: Implement renewal of selfsigned certs 
 
   start_stop_stack_by_script restart
+  ;;
+######################## ngineerx HTPASSWD ########################
+htpasswd)
+  shift; while getopts :u:f: arg; do case ${arg} in
+    u) htpasswd_user=${OPTARG};;
+    f) htpasswd_file=${OPTARG};;
+    ?) exerr ${ngineerx_usage_htpasswd};;
+    :) exerr ${ngineerx_usage_htpasswd};;
+  esac; done; shift $(( ${OPTIND} - 1 ))
+
+  echo "+++ Adding user $htpasswd_user to file $htpasswd_file."
+  printf "$htpasswd_user:`$openssl passwd -apr1`\n" >> $htpasswd_file
   ;;
 ######################## ngineerx DELETE ########################
 delete)
@@ -603,6 +619,8 @@ unset phpfpm
 unset phpfpm_conf_dir
 unset phppid
 unset seperator
+unset htpasswd_file
+unset htpasswd_user
 unset server_ip
 unset site_domain
 unset site_root

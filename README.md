@@ -21,6 +21,9 @@ cert-create   Create certificates only
   [-k PRIVKEY]                Path where privkey.pem should be linked to.
   [-f FULLCHAIN]              Path where fullchain.pem should be linked to.
 cert-renew    Renew certificates with letsencrypt"
+htpasswd      Create htpasswd file for password authentication.
+  -u USERNAME                 The user that should be added
+  -f FILE                     The file where credentials should be stored
 delete        Delete a site
   -d DOMAINNAME               Domain that should be deleted
 list          Lists all avaliable sites and their webroots and php-fpm ports.

@@ -1,6 +1,9 @@
 #ngineerx
 
 ## Changelog:
+**2017-01-25:**
+- Added functionality to create htpasswd files for password authentication.
+
 **2016-05-24:**
 - Added a Makefile. Run ``make install`` to update the repository and all submodules and install all the stuff where it belongs.
 
