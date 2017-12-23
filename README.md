@@ -12,12 +12,10 @@ create        Create new site
   -d DOMAINNAME               Domain that nginx should listen to and for that the certificate is created.
                               Use multiple times if you want to serve multiple domains
   [-u PHP_USER]               The user that PHP should run as
-  [-c letsencrypt|selfsigned] Certificate type. "letsencrypt" or "selfsigned".
   [-f FLAVOUR]                Use a specific flavour for site creation
   [-w]                        Define a non-standard sites webroot
 cert-create   Create certificates only
   -d DOMAINNAME               Domain that the certificate is created for.
-  [-c letsencrypt|selfsigned] Certificate type. "letsencrypt" or "selfsigned".
   [-k PRIVKEY]                Path where privkey.pem should be linked to.
   [-f FULLCHAIN]              Path where fullchain.pem should be linked to.
 cert-renew    Renew certificates with letsencrypt"
@@ -99,7 +97,7 @@ $ ngineerx install
 Now you can create your first site with a letsencrypt certificate.
 
 ```bash
-$ ngineerx create -d example.com -d www.example.com -c letsencrypt
+$ ngineerx create -d example.com -d www.example.com
 ```
 
 That's it. If your DNS records are set up correctly, you should be able to reach https://example.com. To check if PHP is working, open https://example.com/info.php.
@@ -117,12 +115,12 @@ If the files ``nginx.server.conf`` or ``php-fpm.pool.conf`` are not found in the
 The command ``cert-create`` creates certificates only and won't create a site in nginx.
 
 ```bash
-ngineerx cert-create -c selfsigned -d test.example.com
-ngineerx cert-create -c letsencrypt -d xmpp.example.com -k /usr/local/etc/prosody/privkey.pem -f /usr/local/etc/prosody/fullchain.pem
+ngineerx cert-create -d test.example.com
+ngineerx cert-create -d xmpp.example.com -k /usr/local/etc/prosody/privkey.pem -f /usr/local/etc/prosody/fullchain.pem
 ```
 
-The first example would create a selfsigned cert for ``test.example.com``. It would be stored in ``/usr/local/etc/ngineerx/certs/test.example.com/`` and won't be linked anywhere.
-The second example would create a letsencrypt certificate for ``xmpp.example.com``. We use the options ``-k`` and ``-f`` to link ``privkey.pem`` and ``fullchain.pem`` to ``/usr/local/etc/prosody/``.
+The first example would create a cert for ``test.example.com``. It would be stored in ``/usr/local/etc/ngineerx/certs/test.example.com/`` and won't be linked anywhere.
+The second example would create a certificate for ``xmpp.example.com``. We use the options ``-k`` and ``-f`` to link ``privkey.pem`` and ``fullchain.pem`` to ``/usr/local/etc/prosody/``.
 
 
 ### Certificate renewal
@@ -137,4 +135,3 @@ If you want to automate this process and run the renewal every day at 00:30 put 
 ```cron
 30 0 * * * /usr/local/bin/ngineerx cert-renew > /dev/null 2>&1
 ```
-

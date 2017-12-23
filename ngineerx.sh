@@ -53,12 +53,10 @@ help () {
   echo "  -d DOMAINNAME               Domain that nginx should listen to and for that the certificate is created."
   echo "                              Use multiple times if you want to serve multiple domains"
   echo "  [-u PHP_USER]               The user that PHP should run as"
-  echo "  [-c letsencrypt|selfsigned] Certificate type. \"letsencrypt\" or \"selfsigned\"."
   echo "  [-f FLAVOUR]                Use a specific flavour for site creation"
   echo "  [-w]                        Define a non-standard sites webroot"
   echo "cert-create   Create certificates only"
   echo "  -d DOMAINNAME               Domain that the certificate is created for."
-  echo "  [-c letsencrypt|selfsigned] Certificate type. \"letsencrypt\" or \"selfsigned\"."
   echo "  [-k PRIVKEY]                Path where privkey.pem should be linked to."
   echo "  [-f FULLCHAIN]              Path where fullchain.pem should be linked to."
   echo "cert-renew    Renew certificates with letsencrypt"
@@ -126,51 +124,17 @@ parse_domains () {
 }
 
 # Create certificates
-# Usage: create_cert cert_type privkey fullchain
+# Usage: create_cert privkey fullchain
 create_cert () {
   ## Create certs with letsencrypt
-  if [ "$1" == "letsencrypt" ]; then
-    echo "+++ Creating certificates with letsencrypt"
-    ## Add domains to domains.txt
-    echo $nginx_domains >> $letsencrypt_conf_dir/domains.txt
-    ## Run cron renewal and create new certs
-    $letsencrypt -c
+  
+  echo "+++ Creating certificates with letsencrypt"
+  ## Add domains to domains.txt
+  echo $nginx_domains >> $letsencrypt_conf_dir/domains.txt
+  ## Run cron renewal and create new certs
+  $letsencrypt -c
 
-    cert_path="$letsencrypt_conf_dir/certs/$site_domain"
-  fi
-
-  if [ "$1" == "selfsigned" ]; then
-    echo "+++ Creating self-signed SSL certs"
-
-    # Populate subj string for openssl with data fom config if they exist
-    [ "$openssl_subj_c" ] && openssl_subj="$openssl_subj/C=$openssl_subj_c"
-    [ "$openssl_subj_emailaddress" ] && openssl_subj="$openssl_subj/emailAddress=$openssl_subj_emailaddress"
-    [ "$openssl_subj_l" ] && openssl_subj="$openssl_subj/L=$openssl_subj_l"
-    [ "$openssl_subj_o" ] && openssl_subj="$openssl_subj/O=$openssl_subj_o"
-    [ "$openssl_subj_ou" ] && openssl_subj="$openssl_subj/OU=$openssl_subj_ou"
-    [ "$openssl_subj_st" ] && openssl_subj="$openssl_subj/ST=$openssl_subj_st"
-    openssl_subj="$openssl_subj/CN=${domain_args[0]}"
-
-    cert_path="$ngineerx_conf_dir/selfsigned-certs/${domain_args[0]}"
-
-    mkdir -p $cert_path
-
-    if [ ${#domain_args[@]} -gt 1 ]; then
-      # Delete first domain from array. We already have it
-      unset domain_args[0]
-
-      # Create the domain list for openssl and add it to the parameter string
-      openssl_subj="$openssl_subj/subjectAltName="
-
-      for val in "${domain_args[@]}"; do
-        openssl_subj=$openssl_subj"DNS=$val,"
-      done
-    fi
-
-    # Create the cert
-    openssl req -new -x509 -nodes -subj "$openssl_subj" -newkey rsa:4096 -sha256 -keyout $cert_path/privkey.pem -out $cert_path/fullchain.pem -days 1095
-    #[TODO]: Sign certs with own CA
-  fi
+  cert_path="$letsencrypt_conf_dir/certs/$site_domain"
 
   # If a path was speciefied, link certs
 
@@ -183,7 +147,6 @@ create_cert () {
 
 # Set some defaults
 
-cert_type="${cert_type:-selfsigned}"
 dhkeysize="${dhkeysize:-4096}"
 etc_dir="${etc_dir:-/usr/local/etc}"
 le_email="${le_email:-}"
@@ -198,13 +161,6 @@ nginx_conf_dir="${nginx_conf_dir:-$etc_dir/nginx}"
 nginx_includes="${nginx_includes:-$nginx_conf_dir/includes}"
 nginx_user="${nginx_user:-www}"
 nginxpid="${nginxpid:-/var/run/nginx.pid}"
-openssl="${openssl:-/usr/bin/openssl}"
-openssl_subj_c="${openssl_subj_c:-}"
-openssl_subj_emailaddress="${openssl_subj_emailaddress:-}"
-openssl_subj_l="${openssl_subj_l:-}"
-openssl_subj_o="${openssl_subj_o:-}"
-openssl_subj_ou="${openssl_subj_ou:-}"
-openssl_subj_st="${openssl_subj_st:-}"
 php_pool_port="${php_pool_port:-9001}"
 php_user="${php_user:-www_php}"
 phpfpm="${phpfpm:-$etc_dir/rc.d/php-fpm}"
@@ -215,11 +171,11 @@ tmp_dir="${tmp_dir:-/tmp/ngineerx}"
 
 # Synopsis messages
 ngineerx_usage_ngineerx="Usage: $ngineerx [install|create|cert-create|cert-renew|delete|list|enable|disable|start|stop|restart|help] {params}"
-ngineerx_usage_create="Usage: $ngineerx create -d DOMAINNAME [-d DOMAINNAME] [-u PHP_USER] [-c letsencrypt|selfsigned] [-f FLAVOUR] [-w WEBROOT]"
+ngineerx_usage_create="Usage: $ngineerx create -d DOMAINNAME [-d DOMAINNAME] [-u PHP_USER] [-f FLAVOUR] [-w WEBROOT]"
 ngineerx_usage_delete="Usage: $ngineerx delete -d DOMAINNAME"
 ngineerx_usage_enable="Usage: $ngineerx enable -d DOMAINNAME"
 ngineerx_usage_disable="Usage: $ngineerx disable -d DOMAINNAME"
-ngineerx_usage_cert_create="Usage: $ngineerx cert-create [-c letsencrypt|selfsigned] [-k PRIVKEY] [-f FULLCHAIN] -d DOMAINNAME"
+ngineerx_usage_cert_create="Usage: $ngineerx cert-create [-k PRIVKEY] [-f FULLCHAIN] -d DOMAINNAME"
 ngineerx_usage_htpasswd="Usage: $ngineerx htpasswd -u USER -f FILE"
 ngineerx_usage_list="Usage: $ngineerx list"
 
@@ -290,8 +246,6 @@ install)
     $openssl dhparam -out $nginx_conf_dir/dhparam.pem $dhkeysize;
   fi
 
-  #[TODO]: Create CA for signing self-signed certs
-
   echo "+++ Enabling logrotation"
   echo "<include> $ngineerx_conf_dir/ngineerx.newsyslog.conf" >> /etc/newsyslog.conf
   touch $ngineerx_conf_dir/ngineerx.newsyslog.conf
@@ -303,7 +257,6 @@ create)
   shift; while getopts :d:uc:f:w: arg; do case ${arg} in
     d) domain_args+=("$OPTARG");;
     u) php_user=${OPTARG};;
-    c) cert_type=${OPTARG};;
     f) site_flavour=${OPTARG};;
     w) site_webroot=${OPTARG};;
     ?) exerr ${ngineerx_usage_create};;
@@ -343,7 +296,7 @@ create)
   mkdir -p $site_root/{www,log,tmp,certs,sessions}
 
   # Create the certs
-  create_cert $cert_type $site_root/certs/privkey.pem $site_root/certs/fullchain.pem
+  create_cert $site_root/certs/privkey.pem $site_root/certs/fullchain.pem
 
   # Determine the next usable port number for the php-fpm pool
   php_pool_port=`cat $ngineerx_conf_dir/php-fpm.ports.db`
@@ -387,7 +340,6 @@ create)
 cert-create)
   shift; while getopts :d:c:f:w: arg; do case ${arg} in
     d) domain_args+=("$OPTARG");;
-    c) cert_type=${OPTARG};;
     k) cert_privkey=${OPTARG};;
     f) cert_fullchain=${OPTARG};;
     ?) exerr ${ngineerx_usage_cert-create};;
@@ -404,15 +356,13 @@ cert-create)
   le_domains=`parse_domains "-d "`
 
   echo "+++ Creating certificates"
-  create_cert $cert_type $cert_privkey $cert_fullchain
+  create_cert $cert_privkey $cert_fullchain
   ;;
 ######################## ngineerx CERT-RENEW ########################
 cert-renew)
 
   echo "+++ Renewing certificates with letsencrypt"
   $letsencrypt -c
-
-  #[TODO]: Implement renewal of selfsigned certs 
 
   start_stop_stack_by_script restart
   ;;
@@ -445,7 +395,7 @@ delete)
   rm $nginx_conf_dir/sites-avaliable/$site_domain.conf
 
   echo "+++ Deleting php-fpm config for $site_domain"
-  rm $etc_dir/php/php-fpm.d/$site_domain.conf
+  rm $etc_dir/php-fpm.d/$site_domain.conf
 
   # Ditch config files of given domain from nginx config
   echo "+++ Deleting newsyslog config for $site_domain"
@@ -560,7 +510,6 @@ help)
 esac
 
 # Reset Variables
-unset cert_type
 unset cert_path
 unset cert_privkey
 unset cert_fullchain

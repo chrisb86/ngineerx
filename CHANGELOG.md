@@ -1,6 +1,10 @@
 #ngineerx
 
 ## Changelog:
+**2017-12-23:**
+- Fixed a bug where php-fpm config wasn't deleted when deleting a site
+- removed support for selfsigned certs.
+
 **2017-01-25:**
 - Added functionality to create htpasswd files for password authentication.
 
