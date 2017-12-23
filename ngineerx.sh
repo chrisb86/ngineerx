@@ -78,46 +78,56 @@ help () {
   exit $1
 }
 
-# Replace @@VARIABLENAME@@ in given default config file with $VARIABLENAME and write config file to specified location. If no target file is given, replacing will happen inplace.
-# Usage: write_config sourcefile [targetfile]
-write_config () {
-    sed_replace+=(-e "s;@@dhkeysize@@;$dhkeysize;g" )
-    sed_replace+=(-e "s;@@etc_dir@@;$etc_dir;g" )
-    sed_replace+=(-e "s;@@le_keysize@@;$le_keysize;g" )
-    sed_replace+=(-e "s;@@le_email@@;$le_email;g" )
-    sed_replace+=(-e "s;@@letsencrypt_conf_dir@@;$letsencrypt_conf_dir;g" )
-    sed_replace+=(-e "s;@@letsencrypt_webroot@@;$letsencrypt_webroot;g" )
-    sed_replace+=(-e "s;@@ngineerx_conf_dir@@;$ngineerx_conf_dir;g" )
-    sed_replace+=(-e "s;@@ngineerx_webroot@@;$ngineerx_webroot;g" )
-    sed_replace+=(-e "s;@@nginx@@;$nginx;g" )
-    sed_replace+=(-e "s;@@nginx_conf_dir@@;$nginx_conf_dir;g" )
-    sed_replace+=(-e "s;@@nginx_includes@@;$nginx_includes;g" )
-    sed_replace+=(-e "s;@@nginx_domains@@;$nginx_domains;g" )
-    sed_replace+=(-e "s;@@nginx_user@@;$nginx_user;g" )
-    sed_replace+=(-e "s;@@nginxpid@@;$nginxpid;g" )
-    sed_replace+=(-e "s;@@php_pool_port@@;$php_pool_port;g" )
-    sed_replace+=(-e "s;@@php_user@@;$php_user;g" )
-    sed_replace+=(-e "s;@@phpfpm@@;$phpfpm;g" )
-    sed_replace+=(-e "s;@@phpfpm_conf_dir@@;$phpfpm_conf_dir;g" )
-    sed_replace+=(-e "s;@@phppid@@;$phppid;g" )
-    sed_replace+=(-e "s;@@server_ip@@;$server_ip;g" )
-    sed_replace+=(-e "s;@@site_domain@@;$site_domain;g" )
-    sed_replace+=(-e "s;@@site_root@@;$site_root;g" )
-    sed_replace+=(-e "s;@@site_webroot@@;$site_webroot;g" )
+# Replace @@VARIABLENAME@@ in inplace given default config file with $VARIABLENAME.
+# Usage: write_config sourcefile
+write_config() {
 
-    if [ -z ${2+x} ]; then 
-        sed ${sed_replace[@]} -i "" $1
-    else 
-        sed ${sed_replace[@]} $1 > $2
-    fi
+    conf_file=$1
+
+    # Define the replacement patterns
+    declare -A conf_replace
+    conf_replace=(
+        [@@dhkeysize@@]=dhkeysize
+        [@@etc_dir@@]=$etc_dir
+        [@@le_keysize@@]=$le_keysize
+        [@@le_email@@]=$le_email
+        [@@letsencrypt_conf_dir@@]=$letsencrypt_conf_dir
+        [@@letsencrypt_webroot@@]=$letsencrypt_webroot
+        [@@ngineerx_conf_dir@@]=$ngineerx_conf_dir
+        [@@ngineerx_webroot@@]=$ngineerx_webroot
+        [@@nginx@@]=]=$nginx
+        [@@nginx_conf_dir@@]=$nginx_conf_dir
+        [@@nginx_includes@@]=$nginx_includes
+        [@@nginx_domains@@]=$nginx_domains
+        [@@nginx_user@@]=$nginx_user
+        [@@nginxpid@@]=$nginxpid
+        [@@php_pool_port@@]=$php_pool_port
+        [@@php_user@@]=$php_user
+        [@@phpfpm@@]=$phpfpm
+        [@@phpfpm_conf_dir@@]=$phpfpm_conf_dir
+        [@@phppid@@]=$phppid
+        [@@server_ip@@]=$server_ip
+        [@@site_domain@@]=$site_domain
+        [@@site_root@@]=$site_root
+        [@@site_webroot@@]=$site_webroot
+    )
+
+    # Loop the config array
+    for i in "${!conf_replace[@]}"
+    do
+        search=$i
+        replace=${conf_replace[$i]}
+
+        sed -i "" "s|${search}|${replace}|g" $conf_file
+    done
 }
+
 
 # Take the list of domains in array ${domain_args[@]} and echo them seperated by the specified separator as one string
 # Usage: parse_domains sepereator
 parse_domains () {
-  seperator=$1
   for val in "${domain_args[@]}"; do
-      domains="$domains$seperator$val "
+      domains="$domains $val "
   done
 
   echo $domains
@@ -164,7 +174,7 @@ nginxpid="${nginxpid:-/var/run/nginx.pid}"
 php_pool_port="${php_pool_port:-9001}"
 php_user="${php_user:-www_php}"
 phpfpm="${phpfpm:-$etc_dir/rc.d/php-fpm}"
-phpfpm_conf_dir="${phpfpm_conf_dir:-$etc_dir/php/php-fpm.d}"
+phpfpm_conf_dir="${phpfpm_conf_dir:-$etc_dir/php-fpm.d}"
 phppid="${phppid:-/var/run/php-fpm.pid}"
 server_ip="${server_ip:-}"
 tmp_dir="${tmp_dir:-/tmp/ngineerx}"
@@ -273,8 +283,7 @@ create)
   [ ! -d $site_domain ] || exerr ${ngineerx_usage_create}
 
   # Create domain list string for nginx config and cert creation
-  nginx_domains=`parse_domains " "`
-  le_domains=`parse_domains "-d "`
+  nginx_domains=`parse_domains`
 
   #[TODO]: Implement a prompt to overwrite existing files and create backups
   
@@ -307,8 +316,11 @@ create)
   pw group mod $php_user -m $nginx_user
 
   echo "+++ Creating config files"
-  write_config $site_flavour_nginx_conf $nginx_conf_dir/sites-avaliable/$site_domain.conf
-  write_config $site_flavour_phpfpm_pool_conf $phpfpm_conf_dir/$site_domain.conf 
+  cp $site_flavour_nginx_conf $nginx_conf_dir/sites-avaliable/$site_domain.conf
+  cp $site_flavour_phpfpm_pool_conf $phpfpm_conf_dir/$site_domain.conf 
+  
+  write_config $nginx_conf_dir/sites-avaliable/$site_domain.conf
+  write_config $phpfpm_conf_dir/$site_domain.conf 
 
   echo "+++ Copying sample files"
   cp -r $site_flavour_dir/www/* $site_webroot
@@ -351,9 +363,6 @@ cert-create)
 
   # we need at least one domain name
   [ ! -d $site_domain ] || exerr ${ngineerx_usage_cert_create}
-
-  # Create domain list string for cert creation
-  le_domains=`parse_domains "-d "`
 
   echo "+++ Creating certificates"
   create_cert $cert_privkey $cert_fullchain
@@ -515,10 +524,10 @@ unset cert_privkey
 unset cert_fullchain
 unset counter
 unset dhkeysize
+unset conf_replace
 unset domain_args
 unset domains
 unset etc_dir
-unset le_domains
 unset le_email
 unset le_keysize
 unset le_options
@@ -567,7 +576,6 @@ unset php_user
 unset phpfpm
 unset phpfpm_conf_dir
 unset phppid
-unset seperator
 unset htpasswd_file
 unset htpasswd_user
 unset server_ip

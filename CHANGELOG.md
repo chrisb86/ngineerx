@@ -1,6 +1,10 @@
 #ngineerx
 
 ## Changelog:
+**2017-12-24:**
+- Removed some unused variables.
+- write_config() is rewritten and much more readable now.
+
 **2017-12-23:**
 - Fixed a bug where php-fpm config wasn't deleted when deleting a site
 - removed support for selfsigned certs.
