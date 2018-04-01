@@ -1,4 +1,3 @@
-CHALLENGETYPE="http-01"
 BASEDIR="@@letsencrypt_conf_dir@@"
 DOMAINS_TXT="@@letsencrypt_conf_dir@@/domains.txt"
 WELLKNOWN="@@letsencrypt_webroot@@"

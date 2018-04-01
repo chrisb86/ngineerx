@@ -162,7 +162,7 @@ etc_dir="${etc_dir:-/usr/local/etc}"
 le_email="${le_email:-}"
 le_keysize="${le_keysize:-4096}"
 le_options="${le_options:---agree-tos}"
-letsencrypt_conf_dir="${letsencrypt_conf_dir:-$etc_dir/letsencrypt.sh}"
+letsencrypt_conf_dir="${letsencrypt_conf_dir:-$etc_dir/dehydrated}"
 letsencrypt="${letsencrypt:-$letsencrypt_conf_dir/dehydrated}"
 letsencrypt_webroot="${letsencrypt_webroot:-$letsencrypt_conf_dir/.acme-challenges}"
 ngineerx_webroot="${ngineerx_webroot:-/usr/local/www}"
@@ -223,13 +223,13 @@ install)
   mkdir -p $ngineerx_conf_dir/selfsigned-certs
   mkdir -p $phpfpm_conf_dir
   mkdir -p $letsencrypt_webroot
-  mkdir -p $etc_dir/letsencrypt.sh
+  mkdir -p $etc_dir/dehydrated
 
   echo "+++ Creating neccessary config files"
 
   ## Copy template files to tmp
   mkdir -p $tmp_dir
-  cp -r /usr/local/share/ngineerx/letsencrypt.sh $tmp_dir
+  cp -r /usr/local/share/ngineerx/dehydrated $tmp_dir
   cp -r /usr/local/share/ngineerx/nginx $tmp_dir
   cp -r /usr/local/share/ngineerx/php* $tmp_dir
 

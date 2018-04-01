@@ -65,7 +65,7 @@ That's it.
 
 ### Install letsencrypt
 
-ngineerx uses [letsencrypt.sh by Lukas Schauer](https://github.com/lukas2511/letsencrypt.sh) as ACME client for certificate creation with letsencrypt. It's bundled so you have to do nothing here. If you used the official python client from letsencrypt, see the [README of letsencrypt.sh](https://github.com/lukas2511/letsencrypt.sh/blob/master/README.md) for learning how to import your settings. You can find the script, the settings and the certificates at ``/usr/local/etc/letsencrypt.sh``.
+ngineerx uses [dehydrated by Lukas Schauer](https://github.com/lukas2511/dehydrated) as ACME client for certificate creation with letsencrypt. It's bundled so you have to do nothing here. If you used the official python client from letsencrypt, see the [README of dehydrated](https://github.com/lukas2511/dehydrated/blob/master/README.md) for learning how to import your settings. You can find the script, the settings and the certificates at ``/usr/local/etc/dehydrated``.
 
 ### Install ngineerx
 

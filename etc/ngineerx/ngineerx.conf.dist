@@ -31,9 +31,6 @@
 # Key size for Diffie Hellman parameters for nginx (default: 2048)
 # dhkeysize=2048
 
-# Which type of certificates do you want to create ("letsencrypt" oder "selfsigned"; default: selfsigned)
-# cert_type="selfsigned"
-
 ##
 ## Settings for letsencrypt
 ##
@@ -44,30 +41,6 @@
 # Default e-mail address that is used to register certificates with nginx
 # le_email="webmaster@example.com"
 
-##
-## Settings for openssl
-##
-
-# The following settings are used to populate the certificate information for openssl.
-# All of them are optional.
-
-# Locality (city)
-# openssl_subj_l="Mos Eisley"
-
-# State (or province)
-# openssl_subj_st="Great Mesra Plateau"
-
-# Organization (for example, company)
-# openssl_subj_o="Chalmun's Cantina"
-
-# Organizational Unit
-# openssl_subj_ou="Bar service"
-
-# Country
-# openssl_subj_c="TA"
-
-# E-Mail address
-# openssl_subj_emailaddress="wuher@chalmunscantina.tat"
 
 ##
 ## Paths
@@ -82,8 +55,8 @@
 # directory for php-fpm pool configs (default: $etc_dir/php/php-fpm.d)
 # phpfpm_conf_dir="$etc_dir/php/php-fpm.d"
 
-# letsencrypt config directory (default: $etc_dir/letsencrypt)
-# letsencrypt_conf_dir="$etc_dir/letsencrypt.sh"
+# letsencrypt config directory (default: $etc_dir/dehydrated)
+# letsencrypt_conf_dir="$etc_dir/dehydrated"
 
 # webroot that is used to store tokens for letsencrypt auth process
 # letsencrypt_webroot="$letsencrypt_conf_dir/.acme-challenges"

@@ -1,6 +1,9 @@
 #ngineerx
 
 ## Changelog:
+**2018-04-01:**
+- Renamed letsencrypt.sh to it's new project name dehydrated
+
 **2017-12-24:**
 - Removed some unused variables.
 - write_config() is rewritten and much more readable now.
