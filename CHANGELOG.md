@@ -3,7 +3,8 @@
 ## Changelog:
 
 **2018-06-04:**
-- Added log_format „acces“ to nginx.conf.
+- Added log_format „access“ to nginx.conf.
+- Added flavour for nextcloud.
 
 **2018-04-01:**
 - Renamed letsencrypt.sh to it's new project name dehydrated
