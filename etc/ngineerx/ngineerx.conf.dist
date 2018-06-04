@@ -14,7 +14,7 @@
 ## User configuration
 ##
 
-# Run php as this user when no other one is specified (default: www_php) 
+# Run php as this user when no other one is specified (default: www_php)
 # php_user="www_php"
 
 # Run nginx as this user (default: www)
@@ -41,6 +41,8 @@
 # Default e-mail address that is used to register certificates with nginx
 # le_email="webmaster@example.com"
 
+# Additional options for acme client
+# le_options="--agree-tos -g"
 
 ##
 ## Paths

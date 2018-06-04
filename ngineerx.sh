@@ -137,7 +137,7 @@ parse_domains () {
 # Usage: create_cert privkey fullchain
 create_cert () {
   ## Create certs with letsencrypt
-  
+
   echo "+++ Creating certificates with letsencrypt"
   ## Add domains to domains.txt
   echo $nginx_domains >> $letsencrypt_conf_dir/domains.txt
@@ -161,7 +161,7 @@ dhkeysize="${dhkeysize:-4096}"
 etc_dir="${etc_dir:-/usr/local/etc}"
 le_email="${le_email:-}"
 le_keysize="${le_keysize:-4096}"
-le_options="${le_options:---agree-tos}"
+le_options="${le_options:---agree-tos -g}"
 letsencrypt_conf_dir="${letsencrypt_conf_dir:-$etc_dir/dehydrated}"
 letsencrypt="${letsencrypt:-$letsencrypt_conf_dir/dehydrated}"
 letsencrypt_webroot="${letsencrypt_webroot:-$letsencrypt_conf_dir/.acme-challenges}"
@@ -201,7 +201,7 @@ source $ngineerx_conf_dir/ngineerx.conf
 if [ "$1" != "help" ]; then
   ## Load ngineerx.config if it exists. Otherwise exit with error message.
   [ -f $ngineerx_conf_dir/ngineerx.conf ] || exerr "ERROR: Could not load $ngineerx_conf_dir/ngineerx.conf. \nSee $ngineerx_conf_dir/ngineerx.conf.dist for instructions."
-  
+
   source $ngineerx_conf_dir/ngineerx.conf
 fi
 
@@ -210,7 +210,7 @@ case "$1" in
 install)
   # Check if IP address is set.
   [ -z $server_ip ] && exerr "ERROR: We need an IP address for creating the neccessary config files.\n Please specify one in ngineerx.conf."
-  
+
   echo "+++ Checking dependencies"
   check_dependencies $nginx "ERROR: nginx not found. Please install nginx and/or define its path in ngineerx.conf"
   check_dependencies $phpfpm "ERROR: php-fpm not found. Please install php-fpm and/or define its path in ngineerx.conf"
@@ -249,7 +249,7 @@ install)
   if [ ! -f "$ngineerx_conf_dir/php-fpm.ports.db" ]; then
     echo $php_pool_port > $ngineerx_conf_dir/php-fpm.ports.db
   fi
-  
+
   ## Create dhparam.pem only if it doesn't exist.
   if [ ! -f "$nginx_conf_dir/dhparam.pem" ]; then
     echo "+++ Creating diffie hellman parameters with $dhkeysize bit keysize. This may take a long time."
@@ -286,7 +286,7 @@ create)
   nginx_domains=`parse_domains`
 
   #[TODO]: Implement a prompt to overwrite existing files and create backups
-  
+
   ## if no flavour is specified take default
   site_flavour="${site_flavour:-default}"
 
@@ -317,13 +317,16 @@ create)
 
   echo "+++ Creating config files"
   cp $site_flavour_nginx_conf $nginx_conf_dir/sites-avaliable/$site_domain.conf
-  cp $site_flavour_phpfpm_pool_conf $phpfpm_conf_dir/$site_domain.conf 
-  
-  write_config $nginx_conf_dir/sites-avaliable/$site_domain.conf
-  write_config $phpfpm_conf_dir/$site_domain.conf 
+  cp $site_flavour_phpfpm_pool_conf $phpfpm_conf_dir/$site_domain.conf
 
-  echo "+++ Copying sample files"
-  cp -r $site_flavour_dir/www/* $site_webroot
+  write_config $nginx_conf_dir/sites-avaliable/$site_domain.conf
+  write_config $phpfpm_conf_dir/$site_domain.conf
+
+  # Copy sample files if they exist i flavour
+  if [ -d "$site_flavour_dir/www" ]; then
+    echo "+++ Copying sample files"
+    cp -r $site_flavour_dir/www/* $site_webroot
+  fi
 
   # Set strong permissions to files and directories
   chown -R $php_user:$php_user $site_root/
@@ -335,7 +338,7 @@ create)
   echo "+++ Enabling Server $site_domain"
   ln -sf $nginx_conf_dir/sites-avaliable/$site_domain.conf $nginx_conf_dir/sites-enabled/$site_domain.conf
 
-  # Add config files to newsyslog config 
+  # Add config files to newsyslog config
   echo "+++ Enabling logrotation"
   echo "$site_root/log/nginx.access.log 644 12 * \$W0D23 J $nginxpid 30" >> $ngineerx_conf_dir/ngineerx.newsyslog.conf
   echo "$site_root/log/nginx.error.log 644 12 * \$W0D23 J $nginxpid 30" >> $ngineerx_conf_dir/ngineerx.newsyslog.conf
@@ -409,7 +412,7 @@ delete)
   # Ditch config files of given domain from nginx config
   echo "+++ Deleting newsyslog config for $site_domain"
   echo "$(grep -v "$site_domain" $ngineerx_conf_dir/ngineerx.newsyslog.conf)" > $ngineerx_conf_dir/ngineerx.newsyslog.conf
-  
+
   #[TODO]: Implement a flag for toggeling deletion of content
   # Delete content from webroot
   echo "+++ Deleting files for $site_domain"
@@ -437,7 +440,7 @@ list)
   list_format=" %-35s %8s %4s\n"
   list_data=""
   list_divider="------------------------------------ -------- ----"
-  
+
   printf "$list_header" "SITENAME" "STATUS" "POOL"
 
   echo $list_divider
@@ -445,11 +448,11 @@ list)
   for list_file in $nginx_conf_dir/sites-avaliable/*; do
 
     unset list_phpport
-    
+
     # format filename
     list_filename=$(basename "$list_file")
     list_displayname=$(basename "$list_file" .conf)
-    
+
     # if config is linked to sites-enabled set status to enabled
     list_status=`[ -f $nginx_conf_dir/sites-enabled/$list_filename ] && echo "ENABLED" || echo "DISABLED"`
 
@@ -459,11 +462,11 @@ list)
     fi
 
     list_pool="${list_phpport:-N/A}"
-    
+
     # populate data for printf
     list_data="$list_data$list_displayname $list_status $list_pool "
   done
-  
+
   # Print list
   printf "$list_format" $list_data
   echo $list_divider
