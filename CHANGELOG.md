@@ -1,6 +1,10 @@
 #ngineerx
 
 ## Changelog:
+
+**2018-06-04:**
+- Added log_format „acces“ to nginx.conf.
+
 **2018-04-01:**
 - Renamed letsencrypt.sh to it's new project name dehydrated
 
@@ -53,7 +57,7 @@
 
 **2015-12-28:**
 - Added a switch to toggle creation of sample files
-- Implemented help screen 
+- Implemented help screen
 - Implemented a switch to define a non-standard webroot
 
 **2015-12-27:**
@@ -81,7 +85,7 @@
 - Implemented certificate creation with letsencrypt
 - Activated OCSP stapling
 - Implemented possibility to create server and certs for multiple domains
-- SHA256 will be used for creation of self-signed certs now 
+- SHA256 will be used for creation of self-signed certs now
 
 **2015-12-20:**
 - Implemented usage of custom Diffie Hellman parameters for TLS/SSL.
