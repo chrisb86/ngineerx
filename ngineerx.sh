@@ -122,7 +122,6 @@ write_config() {
     done
 }
 
-
 # Take the list of domains in array ${domain_args[@]} and echo them seperated by the specified separator as one string
 # Usage: parse_domains sepereator
 parse_domains () {
@@ -149,8 +148,8 @@ create_cert () {
   # If a path was speciefied, link certs
 
   [ $2 ] || [ $3 ] && echo "+++ Linking the certificates to desired destination"
-  [ $2 ] && ln -si $cert_path/privkey.pem $2
-  [ $3 ] && ln -si $cert_path/fullchain.pem $3
+  [ $2 ] && ln -sf $cert_path/privkey.pem $2
+  [ $3 ] && ln -sf $cert_path/fullchain.pem $3
 }
 
 ## Let's make the magic happen...
@@ -322,13 +321,14 @@ create)
   write_config $nginx_conf_dir/sites-avaliable/$site_domain.conf
   write_config $phpfpm_conf_dir/$site_domain.conf
 
-  # Copy sample files if they exist i flavour
+  # Copy sample files if they exist in flavour
   if [ -d "$site_flavour_dir/www" ]; then
     echo "+++ Copying sample files"
     cp -r $site_flavour_dir/www/* $site_webroot
   fi
 
   # Set strong permissions to files and directories
+  echo "+++ Set strong permissions to files and directories"
   chown -R $php_user:$php_user $site_root/
   chmod 750 $site_root
   chmod 750 $site_root/*
