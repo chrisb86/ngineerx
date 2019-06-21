@@ -2,7 +2,14 @@
 
 ## Changelog:
 
+**2019-06-21:**
+
+- Completely rewritten in pure POSIX shell.
+- Removed unused commands and code.
+- Made everything more awesome.
+
 **2018-06-04:**
+
 - Added log_format „access“ to nginx.conf.
 - Added flavour for nextcloud.
 

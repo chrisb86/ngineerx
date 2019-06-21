@@ -1,5 +1,0 @@
-BASEDIR="@@letsencrypt_conf_dir@@"
-DOMAINS_TXT="@@letsencrypt_conf_dir@@/domains.txt"
-WELLKNOWN="@@letsencrypt_webroot@@"
-KEYSIZE="@@le_keysize@@"
-CONTACT_EMAIL="@@le_email@@"

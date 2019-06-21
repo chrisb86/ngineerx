@@ -1,0 +1,105 @@
+## This is the config file for ngineerx.
+## You my customize many parameters but you don't have to.
+## Everything should work out of the box with sensible defaults.
+
+## Turn on verbose mode
+#VERBOSE=false
+
+## Turn on debug mode
+#DEBUG=false
+
+## Date format for logs
+#LOG_DATE_FORMAT="%Y-%m-%d %H:%M:%S"
+
+## Direcotry for ngineerx log files
+#NGINEERX_LOG_DIR="/var/log"
+
+## Name for ngineerx log file
+#NGINEERX_LOG_FILE="ngineerx.log"
+
+## IP of ngineerx host for use in nginx and php-fpm config files
+#NGINEERX_HOST_IP="127.0.0.1"
+
+## Start port number for php-fpm (will be incremented for every pool)
+#NGINEERX_PHP_POOL_PORT="9001"
+
+## File to store the next usable port for php-fpm
+#NGINEERX_PHP_PORTS_DB="$ngineerx_conf_dir/php-fpm_ports.db"
+
+## Default user that PHP will run as
+#NGINEERX_PHP_USER="www_php"
+
+## Default user that nginx will run as
+#NGINEERX_NGINX_USER="www"
+
+## Directory where to look for flavours
+#NGINEERX_FLAVOUR_DIR="$ngineerx_conf_dir/flavours"
+
+## Directory where the data for websites is stored
+#NGINEERX_WEBROOT="/usr/local/www"
+
+## Temp directory where nginx will prepare config files during installation
+#NGINEERX_TEMP_DIR="/tmp/ngineerx"
+
+## Path to dehydrated binary
+#DEHYDRATED="/usr/local/bin/dehydrated"
+
+## Path to ngineerx specific config file for dehydrated
+#DEHYDRATED_CONF_FILE="$ngineerx_conf_dir/dehydrated_config"
+
+## Path to ngineerx specific hook.sh for dehydrated
+#dehydrated_hook_file="$ngineerx_conf_dir/dehydrated_hook.sh"
+
+## Path to ngineerx specific domains.txt for dehydrated
+#DEHYDRATED_DOMAINS_TXT="$ngineerx_conf_dir/dehydrated_domains.txt"
+
+## Path to ngineerx specific acme challenges for dehydrated
+#DEHYDRATED_WEBROOT="$dehydrated_conf_dir/.acme-challenges"
+
+## ngineerx specifig default arguments for dehydrated
+#DEHYDRATED_ARGS="-f $dehydrated_conf_file"
+
+## ngineerx specifig default arguments for dehydrated during installation
+#DEHYDRATED_ARGS="--register --accept-terms"
+
+## Path to newsyslog.conf.d directory
+#NEWSYSLOG_CONF_D="$basedir/newsyslog.conf.d"
+
+## Path to cron.d directory
+#CRON_CONF_D="$basedir/cron.d"
+
+## Path to nginx rc script
+#NGINX_RC="$basedir/rc.d/nginx"
+
+## Path to nginx diffie hellman parameters
+#NGINX_DH_FILE="$nginx_conf_dir/dhparam.pem"
+
+## Key size for nginx diffie hellman parameters
+#NGINX_DHKEYSIZE="2048"
+
+## Path to nginx pid file
+#NGINX_PID_FILE="/var/run/nginx.pid"
+
+## Path to nginx config directory
+#NGINX_CONF_DIR="$basedir/nginx"
+
+## Path to nginx includes directory
+#NGINX_INCLUDES_DIR="$nginx_conf_dir/includes"
+
+## ## Path to nginx sites-avaliable directory
+#NGINX_SITES_AVALIABLE="$nginx_conf_dir/sites-avaliable"
+
+## ## Path to nginx sites-enabled directory
+#NGINX_SITES_ENABLED="$nginx_conf_dir/sites-enabled"
+
+## Path to php-fpm rc script
+#PHPFPM_RC="$basedir/rc.d/php-fpm"
+
+## Path to php-fpm pool configs directory
+#PHPFPM_CONF_D="$basedir/php-fpm.d"
+
+## Path to php-fpm pid file
+#PHPFPM_PID_FILE="/var/run/php-fpm.pid"
+
+## Path to openssl binary
+#OPENSSL="/usr/bin/openssl"

@@ -1,3 +1,0 @@
-[submodule "etc/dehydrated"]
-	path = etc/dehydrated
-	url = https://github.com/lukas2511/dehydrated

@@ -1,7 +1,9 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-# ngineerx
-# Copyright 2015 Christian Busch
+# ngineerx.sh
+# Configure and manage an nginx and php-fpm stack with letsencrypt certs on FreeBSD systems.
+
+# Copyright 2015 Christian Baer
 # http://github.com/chrisb86/
 
 # Permission is hereby granted, free of charge, to any person obtaining
@@ -20,577 +22,600 @@
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
 # NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTI
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+# WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-## Set script name and config directory
 ngineerx=`basename -- $0`
-ngineerx_conf_dir="/usr/local/etc/ngineerx"
+ngineerx_pid=$$
 
-# Exit with errormessage
-# Usage: exerr errormessage
-exerr () { echo -e "$*" >&2 ; exit 1; }
+VERBOSE="${VERBOSE:-false}"
+DEBUG="${DEBUG:-false}"
 
-# Pass command to init scripts
-# Usage: start_stop_stack_by_script restart
-start_stop_stack_by_script () {
-  $nginx $@
-  $phpfpm $@
-}
+basedir="${BASEDIR:-/usr/local/etc}"
+ngineerx_conf_dir="${NGINEERX_CONF_DIR:-$basedir/ngineerx}"
+ngineerx_conf_file="${NGINEERX_CONF_FILE:-$ngineerx_conf_dir/ngineerx.conf}"
+ngineerx_pid_file="${NGINEERX_PID_FILE:-/var/run/ngineerx.pid}"
+log_date_format="${LOG_DATE_FORMAT:-%Y-%m-%d %H:%M:%S}"
+ngineerx_log_dir="${NGINEERX_LOG_DIR:-/var/log}"
+ngineerx_log_file="${NGINEERX_LOG_FILE:-ngineerx.log}"
 
-# Check required dependencies
-# Usage: check_dependencies binary errormessage
-check_dependencies () {
-  [ -x "$(command -v $1)" ] || exerr "$2"
-}
+# Synopsis messages
+ngineerx_usage_create="Usage: $ngineerx create -d DOMAINS [-u PHP_USER -f FLAVOUR]"
+ngineerx_usage_delete="Usage: $ngineerx delete -d DOMAIN"
+ngineerx_usage_enable="Usage: $ngineerx enable -d DOMAIN"
+ngineerx_usage_disable="Usage: $ngineerx disable -d DOMAIN"
 
 # Show help screen
 # Usage: help exitcode
 help () {
   echo "Usage: $ngineerx command {params}"
   echo
-  echo "install       Copy config files for nginx and php and create directory structure"
-  echo "create        Create new site"
-  echo "  -d DOMAINNAME               Domain that nginx should listen to and for that the certificate is created."
-  echo "                              Use multiple times if you want to serve multiple domains"
-  echo "  [-u PHP_USER]               The user that PHP should run as"
-  echo "  [-f FLAVOUR]                Use a specific flavour for site creation"
-  echo "  [-w]                        Define a non-standard sites webroot"
-  echo "cert-create   Create certificates only"
-  echo "  -d DOMAINNAME               Domain that the certificate is created for."
-  echo "  [-k PRIVKEY]                Path where privkey.pem should be linked to."
-  echo "  [-f FULLCHAIN]              Path where fullchain.pem should be linked to."
-  echo "cert-renew    Renew certificates with letsencrypt"
-  echo "htpasswd      Create htpasswd file for password authentication."
-  echo "  -u USERNAME                 The user that should be added"
-  echo "  -f FILE                     The file where credentials should be stored"
-  echo "delete        Delete a site"
-  echo "  -d DOMAINNAME               Domain that should be deleted"
-  echo "list          Lists all avaliable sites and their webroots and php-fpm ports."
-  echo "enable        Enables the nginx configs of the given domain"
-  echo "  -d DOMAINNAME               Domain that should be enabled"
-  echo "disable       Disables the nginx configs of the given domain"
-  echo "  -d DOMAINNAME               Domain that should be disabled"
-  echo "start         Start the nginx and php-fpm"
-  echo "stop          Stop the nginx and php-fpm"
-  echo "restart       Restart the nginx and php-fpm"
-  echo "help          Show this screen"
-
+  echo "install         Copy config files for nginx and php and create directory structure"
+  echo "create          Create new site"
+  echo " -d \"DOMAINS\"     Domains that should be served by a site"
+  echo " [-u PHP_USER]    User that should be used for PHP"
+  echo " [-f FLAVOUR]     Flavour that should be used to create a site"
+  echo "delete          Delete a site"
+  echo " -d DOMAIN        Main domain of a site that should be deleted"
+  echo "enable          Enable a site in nginx"
+  echo " -d DOMAIN        Main domain of a site that should be enabled"
+  echo "disable         Disable a site in nginx"
+  echo " -d DOMAIN        Main domain of a site that should be disabled"
+  echo "cert-renew      Renew certificates"
+  echo "list            List all sites"
+  echo "help            Show this screen"
+# [TODO] aktualisieren
   exit $1
 }
 
-# Replace @@VARIABLENAME@@ in inplace given default config file with $VARIABLENAME.
-# Usage: write_config sourcefile
-write_config() {
+# Print and log messages when verbose mode is on
+# Usage: chat [0|1|2|3] MESSAGE
+## 0 = regular output
+## 1 = error messages
+## 2 = verbose messages
+## 3 = debug messages
 
-    conf_file=$1
+chat () {
+    messagetype=$1
+    message=$2
+    log=$ngineerx_log_dir/$ngineerx_log_file
+    log_date=$(date "+$log_date_format")
 
-    # Define the replacement patterns
-    declare -A conf_replace
-    conf_replace=(
-        [@@dhkeysize@@]=dhkeysize
-        [@@etc_dir@@]=$etc_dir
-        [@@le_keysize@@]=$le_keysize
-        [@@le_email@@]=$le_email
-        [@@letsencrypt_conf_dir@@]=$letsencrypt_conf_dir
-        [@@letsencrypt_webroot@@]=$letsencrypt_webroot
-        [@@ngineerx_conf_dir@@]=$ngineerx_conf_dir
-        [@@ngineerx_webroot@@]=$ngineerx_webroot
-        [@@nginx@@]=]=$nginx
-        [@@nginx_conf_dir@@]=$nginx_conf_dir
-        [@@nginx_includes@@]=$nginx_includes
-        [@@nginx_domains@@]=$nginx_domains
-        [@@nginx_user@@]=$nginx_user
-        [@@nginxpid@@]=$nginxpid
-        [@@php_pool_port@@]=$php_pool_port
-        [@@php_user@@]=$php_user
-        [@@phpfpm@@]=$phpfpm
-        [@@phpfpm_conf_dir@@]=$phpfpm_conf_dir
-        [@@phppid@@]=$phppid
-        [@@server_ip@@]=$server_ip
-        [@@site_domain@@]=$site_domain
-        [@@site_root@@]=$site_root
-        [@@site_webroot@@]=$site_webroot
-    )
+    if [ $messagetype = 0 ]; then
+      echo "[$log_date] [INFO] $message" | tee -a $log ;
+    fi
+#
+    if [ $messagetype = 1 ]; then
+      echo "[$log_date] [ERROR] $message" | tee -a $log ; exit 1;
+    fi
 
-    # Loop the config array
-    for i in "${!conf_replace[@]}"
-    do
-        search=$i
-        replace=${conf_replace[$i]}
+    if [ $messagetype = 2 ] && [ "$VERBOSE" = true ]; then
+      echo "[$log_date] [INFO] $message" | tee -a $log
+    fi
 
-        sed -i "" "s|${search}|${replace}|g" $conf_file
-    done
+    if [ $messagetype = 3 ] && [ "$DEBUG" = true ]; then
+      echo "[$log_date] [DEBUG] $message" | tee -a $log
+    fi
 }
 
-# Take the list of domains in array ${domain_args[@]} and echo them seperated by the specified separator as one string
-# Usage: parse_domains sepereator
-parse_domains () {
-  for val in "${domain_args[@]}"; do
-      domains="$domains $val "
-  done
+# Load config file and set default variables
+# Usage: init [CONFIGFILE]
+init () {
 
-  echo $domains
+  [ -f "$ngineerx_conf_file" ] && chat 2 "Config file $ngineerx_conf_file found. Loading." && . $ngineerx_conf_file
+
+  ngineerx_host_ip="${NGINEERX_HOST_IP:-127.0.0.1}"
+  ngineerx_php_pool_port="${NGINEERX_PHP_POOL_PORT:-9001}"
+  ngineerx_php_ports_db="${NGINEERX_PHP_PORTS_DB:-$ngineerx_conf_dir/php-fpm_ports.db}"
+  ngineerx_php_user="${NGINEERX_PHP_USER:-www_php}"
+  ngineerx_nginx_user="${NGINEERX_NGINX_USER:-www}"
+  ngineerx_flavour_dir="${NGINEERX_FLAVOUR_DIR:-$ngineerx_conf_dir/flavours}"
+  ngineerx_webroot="${NGINEERX_WEBROOT:-/usr/local/www}"
+  ngineerx_temp_dir="${NGINEERX_TEMP_DIR:-/tmp/ngineerx}"
+  dehydrated="${DEHYDRATED:-/usr/local/bin/dehydrated}"
+  dehydrated_conf_file="${DEHYDRATED_CONF_FILE:-$ngineerx_conf_dir/dehydrated_config}"
+  dehydrated_hook_file="${dehydrated_hook_file:-$ngineerx_conf_dir/dehydrated_hook.sh}"
+  dehydrated_domains_txt="${DEHYDRATED_DOMAINS_TXT:-$ngineerx_conf_dir/dehydrated_domains.txt}"
+  dehydrated_webroot="${DEHYDRATED_WEBROOT:-$ngineerx_conf_dir/.acme-challenges}"
+  dehydrated_args="${DEHYDRATED_ARGS:--f $dehydrated_conf_file}"
+  dehydrated_args_install="${DEHYDRATED_ARGS:---register --accept-terms}"
+  newsyslog_conf_d="${NEWSYSLOG_CONF_D:-$basedir/newsyslog.conf.d}"
+  cron_conf_d="${CRON_CONF_D:-$basedir/cron.d}"
+  nginx_rc="${NGINX_RC:-$basedir/rc.d/nginx}"
+  nginx_conf_dir="${NGINX_CONF_DIR:-$basedir/nginx}"
+  nginx_dhkeysize="${NGINX_DHKEYSIZE:-2048}"
+  nginx_dh_file="${NGINX_DH_FILE:-$nginx_conf_dir/dhparam.pem}"
+  nginx_pid_file="${NGINX_PID_FILE:-/var/run/nginx.pid}"
+  nginx_includes_dir="${NGINX_INCLUDES_DIR:-$nginx_conf_dir/includes}"
+  nginx_sites_avaliable="${NGINX_SITES_AVALIABLE:-$nginx_conf_dir/sites-avaliable}"
+  nginx_sites_enabled="${NGINX_SITES_ENABLED:-$nginx_conf_dir/sites-enabled}"
+  phpfpm_rc="${PHPFPM_RC:-$basedir/rc.d/php-fpm}"
+  phpfpm_conf_d="${PHPFPM_CONF_D:-$basedir/php-fpm.d}"
+  phpfpm_pid_file="${PHPFPM_PID_FILE:-/var/run/php-fpm.pid}"
+  openssl="${OPENSSL:-/usr/bin/openssl}"
+
+  chat 2 "Starting $ngineerx with PID $ngineerx_pid."
+
+  chat 3 "ngineerx_host_ip: $ngineerx_host_ip"
+  chat 3 "ngineerx_php_pool_port: $ngineerx_php_pool_port"
+  chat 3 "ngineerx_php_ports_db: $ngineerx_php_ports_db"
+  chat 3 "ngineerx_php_user: $ngineerx_php_user"
+  chat 3 "ngineerx_nginx_user: $ngineerx_nginx_user"
+  chat 3 "ngineerx_flavour_dir: $ngineerx_flavour_dir"
+  chat 3 "ngineerx_webroot: $ngineerx_webroot"
+  chat 3 "ngineerx_temp_dir: $ngineerx_temp_dir"
+  chat 3 "dehydrated: $dehydrated"
+  chat 3 "dehydrated_conf_file: $dehydrated_conf_file"
+  chat 3 "dehydrated_hook_file: $dehydrated_hook_file"
+  chat 3 "dehydrated_domains_txt: $dehydrated_domains_txt"
+  chat 3 "dehydrated_webroot: $dehydrated_webroot"
+  chat 3 "dehydrated_args: $dehydrated_args"
+  chat 3 "dehydrated_args_install: $dehydrated_args_install"
+  chat 3 "newsyslog_conf_d: $newsyslog_conf_d"
+  chat 3 "cron_conf_d: $cron_conf_d"
+  chat 3 "nginx_rc: $nginx_rc"
+  chat 3 "nginx_conf_dir: $nginx_conf_dir"
+  chat 3 "nginx_dhkeysize: $nginx_dhkeysize"
+  chat 3 "nginx_dh_file: $nginx_dh_file"
+  chat 3 "nginx_pid_file: $nginx_pid_file"
+  chat 3 "nginx_includes_dir: $nginx_includes_dir"
+  chat 3 "nginx_sites_avaliable: $nginx_sites_avaliable"
+  chat 3 "nginx_sites_enabled: $nginx_sites_enabled"
+  chat 3 "phpfpm_rc: $phpfpm_rc"
+  chat 3 "phpfpm_conf_d: $phpfpm_conf_d"
+  chat 3 "phpfpm_pid_file: $phpfpm_pid_file"
+  chat 3 "openssl: $openssl"
+
+}
+
+# Check if script is already running
+# Usage: checkpid
+checkPID () {
+
+	touch $ngineerx_pid_file
+
+	# Get stored PID from file
+	ngineerx_stored_pid=`cat $ngineerx_pid_file`
+
+	# Check if stored PID is in use
+	ngineerx_pid_is_running=`ps aux | awk '{print $2}' | grep $ngineerx_stored_pid`
+
+  chat 3 "rmbackup_pid: $ngineerx_pid"
+  chat 3 "rmbackup_stored_pid: $ngineerx_stored_pid"
+  chat 3 "rmbackup_pid_is_running: $ngineerx_pid_is_running"
+
+	if [ "$ngineerx_pid_is_running" ]; then
+		# If stored PID is already in use, skip execution
+		chat 1 "Skipping because $ngineerx is running (PID: $ngineerx_stored_pid)."
+	else
+		# Update PID file
+		echo $ngineerx_pid > $ngineerx_pid_file
+    chat 2 "Starting work."
+	fi
+}
+
+# Check required dependencies
+# Usage: check_dependencies binary
+check_dependencies () {
+  [ -x "$(command -v $1)" ] || chat 1 "$1 not found. Please install it and/or define its path in $ngineerx_conf_file. Exiting"
+}
+
+# Pass command to init scripts
+# Usage: start_stop_stack_by_script COMMAND
+start_stop_stack_by_script () {
+  $nginx_rc $@
+  $phpfpm_rc $@
 }
 
 # Create certificates
-# Usage: create_cert privkey fullchain
+# Usage: create_cert domains DOMAINNAME [DOMAINNAME DOMAINNAME]
 create_cert () {
-  ## Create certs with letsencrypt
-
-  echo "+++ Creating certificates with letsencrypt"
+  chat 2 "Creating certificates with $dehydrated"
   ## Add domains to domains.txt
-  echo $nginx_domains >> $letsencrypt_conf_dir/domains.txt
+  chat 3 "echo \"$@\" >> $dehydrated_domains_txt"
+  echo "$@" >> $dehydrated_domains_txt
   ## Run cron renewal and create new certs
-  $letsencrypt -c
-
-  cert_path="$letsencrypt_conf_dir/certs/$site_domain"
-
-  # If a path was speciefied, link certs
-
-  [ $2 ] || [ $3 ] && echo "+++ Linking the certificates to desired destination"
-  [ $2 ] && ln -sf $cert_path/privkey.pem $2
-  [ $3 ] && ln -sf $cert_path/fullchain.pem $3
+  chat 3 "$dehydrated ${dehydrated_args} -c"
+  $dehydrated ${dehydrated_args} -c
 }
 
-## Let's make the magic happen...
+# Replace @@VARIABLENAME@@ inplace given default config file with $VARIABLENAME.
+# Usage: write_config sourcefile
+write_config() {
 
-# Set some defaults
+  conf_file=$1
 
-dhkeysize="${dhkeysize:-4096}"
-etc_dir="${etc_dir:-/usr/local/etc}"
-le_email="${le_email:-}"
-le_keysize="${le_keysize:-4096}"
-le_options="${le_options:---agree-tos -g}"
-letsencrypt_conf_dir="${letsencrypt_conf_dir:-$etc_dir/dehydrated}"
-letsencrypt="${letsencrypt:-$letsencrypt_conf_dir/dehydrated}"
-letsencrypt_webroot="${letsencrypt_webroot:-$letsencrypt_conf_dir/.acme-challenges}"
-ngineerx_webroot="${ngineerx_webroot:-/usr/local/www}"
-nginx="${nginx:-$etc_dir/rc.d/nginx}"
-nginx_conf_dir="${nginx_conf_dir:-$etc_dir/nginx}"
-nginx_includes="${nginx_includes:-$nginx_conf_dir/includes}"
-nginx_user="${nginx_user:-www}"
-nginxpid="${nginxpid:-/var/run/nginx.pid}"
-php_pool_port="${php_pool_port:-9001}"
-php_user="${php_user:-www_php}"
-phpfpm="${phpfpm:-$etc_dir/rc.d/php-fpm}"
-phpfpm_conf_dir="${phpfpm_conf_dir:-$etc_dir/php-fpm.d}"
-phppid="${phppid:-/var/run/php-fpm.pid}"
-server_ip="${server_ip:-}"
-tmp_dir="${tmp_dir:-/tmp/ngineerx}"
+  chat 2 "Writing config file $conf_file"
 
-# Synopsis messages
-ngineerx_usage_ngineerx="Usage: $ngineerx [install|create|cert-create|cert-renew|delete|list|enable|disable|start|stop|restart|help] {params}"
-ngineerx_usage_create="Usage: $ngineerx create -d DOMAINNAME [-d DOMAINNAME] [-u PHP_USER] [-f FLAVOUR] [-w WEBROOT]"
-ngineerx_usage_delete="Usage: $ngineerx delete -d DOMAINNAME"
-ngineerx_usage_enable="Usage: $ngineerx enable -d DOMAINNAME"
-ngineerx_usage_disable="Usage: $ngineerx disable -d DOMAINNAME"
-ngineerx_usage_cert_create="Usage: $ngineerx cert-create [-k PRIVKEY] [-f FULLCHAIN] -d DOMAINNAME"
-ngineerx_usage_htpasswd="Usage: $ngineerx htpasswd -u USER -f FILE"
-ngineerx_usage_list="Usage: $ngineerx list"
+  # Define the replacement patterns
+  replacements="@@nginx_dhkeysize@@=$nginx_dhkeysize @@basedir@@=$basedir @@dehydrated_webroot@@=$dehydrated_webroot @@dehydrated_domains_txt@@=$dehydrated_domains_txt @@dehydrated_hook_file@@=$dehydrated_hook_file @@ngineerx_conf_dir@@=$ngineerx_conf_dir @@ngineerx_webroot@@=$ngineerx_webroot @@nginx_rc@@=$nginx_rc @@nginx_conf_dir@@=$nginx_conf_dir @@nginx_includes_dir@@=$nginx_includes_dir @@nginx_user@@=$ngineerx_nginx_user @@nginx_pid_file@@=$nginx_pid_file @@php_pool_port@@=$ngineerx_php_pool_port @@phpfpm_user@@=$ngineerx_php_user @@phpfpm_rc@@=$phpfpm_rc @@phpfpm_conf_dir@@=$phpfpm_conf_d @@phpfpm_pid_file@@=$phpfpm_pid_file @@ngineerx_host_ip@@=$ngineerx_host_ip @@site_domain@@=$site_domain @@site_root@@=$site_root @@site_webroot@@=$site_webroot @@nginx_dh_file@@=$nginx_dh_file"
 
-# Check for command. If none is given, show help and exit with error.
-[ $# -gt 0 ] || help 1;
+  chat 3 "replacements: $replacements"
 
-# Load ngineerx.config if it exists. Otherwise exit with error message.
-[ -f $ngineerx_conf_dir/ngineerx.conf ] || exerr "ERROR: Could not load $ngineerx_conf_dir/ngineerx.conf. \nSee $ngineerx_conf_dir/ngineerx.conf.dist for instructions."
+  for f in ${replacements}; do
+    search=`echo $f | cut -f 1 -d "="`
+    replace=`echo $f | cut -f 2 -d "="`
 
-source $ngineerx_conf_dir/ngineerx.conf
+    chat 3 "sed -i "" \"s|${search}|${replace}|g\" $conf_file"
+    sed -i "" "s|"${search}"|"${replace}"|g" $conf_file
+    unset search replace
+  done
 
-# When command is not help, source config
-if [ "$1" != "help" ]; then
-  ## Load ngineerx.config if it exists. Otherwise exit with error message.
-  [ -f $ngineerx_conf_dir/ngineerx.conf ] || exerr "ERROR: Could not load $ngineerx_conf_dir/ngineerx.conf. \nSee $ngineerx_conf_dir/ngineerx.conf.dist for instructions."
-
-  source $ngineerx_conf_dir/ngineerx.conf
-fi
+  ## Small hack because of whitespaces between domain names
+  search="@@domains@@"
+  replace=${domains}
+  chat 3 "sed -i \"\" \"s|${search}|${replace}|g\" $conf_file"
+  sed -i "" "s|${search}|${replace}|g" $conf_file
+  chat 3 "unset replacements search replace"
+  unset replacements search replace
+}
 
 case "$1" in
-######################## ngineerx INSTALL ########################
-install)
-  # Check if IP address is set.
-  [ -z $server_ip ] && exerr "ERROR: We need an IP address for creating the neccessary config files.\n Please specify one in ngineerx.conf."
-
-  echo "+++ Checking dependencies"
-  check_dependencies $nginx "ERROR: nginx not found. Please install nginx and/or define its path in ngineerx.conf"
-  check_dependencies $phpfpm "ERROR: php-fpm not found. Please install php-fpm and/or define its path in ngineerx.conf"
-  check_dependencies $openssl "ERROR: openssl not found. Please install openssl and/or define its path in ngineerx.conf"
-
-  #[TODO]: Implement a prompt to overwrite existing files and create backups
-  echo "+++ Creating directory structure"
-  mkdir -p $nginx_conf_dir/{sites-avaliable,sites-enabled}
-  mkdir -p $ngineerx_webroot
-  mkdir -p $ngineerx_conf_dir/selfsigned-certs
-  mkdir -p $phpfpm_conf_dir
-  mkdir -p $letsencrypt_webroot
-  mkdir -p $etc_dir/dehydrated
-
-  echo "+++ Creating neccessary config files"
-
-  ## Copy template files to tmp
-  mkdir -p $tmp_dir
-  cp -r /usr/local/share/ngineerx/dehydrated $tmp_dir
-  cp -r /usr/local/share/ngineerx/nginx $tmp_dir
-  cp -r /usr/local/share/ngineerx/php* $tmp_dir
-
-  ## modify template files for concrete usage scenario
-  find $tmp_dir -type f | while read f; do
-    write_config $f
-  done
-
-  ## Copy config files to /usr/local/etc and delete tmp files
-  cp -r $tmp_dir/* $etc_dir && rm -r $tmp_dir
-
-  cp -r /usr/local/share/ngineerx/ngineerx/* $ngineerx_conf_dir
-
-  touch $letsencrypt_conf_dir/domains.txt
-
-  ## Create php-fpm.ports.db if it doesn't exist.
-  if [ ! -f "$ngineerx_conf_dir/php-fpm.ports.db" ]; then
-    echo $php_pool_port > $ngineerx_conf_dir/php-fpm.ports.db
-  fi
-
-  ## Create dhparam.pem only if it doesn't exist.
-  if [ ! -f "$nginx_conf_dir/dhparam.pem" ]; then
-    echo "+++ Creating diffie hellman parameters with $dhkeysize bit keysize. This may take a long time."
-    $openssl dhparam -out $nginx_conf_dir/dhparam.pem $dhkeysize;
-  fi
-
-  echo "+++ Enabling logrotation"
-  echo "<include> $ngineerx_conf_dir/ngineerx.newsyslog.conf" >> /etc/newsyslog.conf
-  touch $ngineerx_conf_dir/ngineerx.newsyslog.conf
-
-  start_stop_stack_by_script start
-  ;;
-######################## ngineerx CREATE ########################
-create)
-  shift; while getopts :d:uc:f:w: arg; do case ${arg} in
-    d) domain_args+=("$OPTARG");;
-    u) php_user=${OPTARG};;
-    f) site_flavour=${OPTARG};;
-    w) site_webroot=${OPTARG};;
-    ?) exerr ${ngineerx_usage_create};;
-    :) exerr ${ngineerx_usage_create};;
-  esac; done; shift $(( ${OPTIND} - 1 ))
-
-  # Get the first domain name. It's used for naming the files and directories
-  site_domain=${domain_args[0]}
-
-  site_root="${site_root:-$ngineerx_webroot/$site_domain}"
-  site_webroot="${site_webroot:-$site_root/www}"
-
-  # we need at least one domain name
-  [ ! -d $site_domain ] || exerr ${ngineerx_usage_create}
-
-  # Create domain list string for nginx config and cert creation
-  nginx_domains=`parse_domains`
-
-  #[TODO]: Implement a prompt to overwrite existing files and create backups
-
-  ## if no flavour is specified take default
-  site_flavour="${site_flavour:-default}"
-
-  ## Check if flavour directory exists, otherwise exit
-  [ -d "$ngineerx_conf_dir/flavours/$site_flavour" ] && site_flavour_dir="$ngineerx_conf_dir/flavours/$site_flavour" || exerr "ERROR: flavour $site_flavour not found in $ngineerx_conf_dir/flavours."
-
-  ## Check if nginx and php config files exist in flavour directory
-  [ -f $site_flavour_dir/nginx.server.conf ] && site_flavour_nginx_conf="$site_flavour_dir/nginx.server.conf"
-  [ -f $site_flavour_dir/php-fpm.pool.conf ] && site_flavour_phpfpm_pool_conf="$site_flavour_dir/php-fpm.pool.conf"
-
-  ## Otherwise take them from default flavour
-  site_flavour_nginx_conf="${site_flavour_nginx_conf:-$ngineerx_conf_dir/flavours/default/nginx.server.conf}"
-  site_flavour_phpfpm_pool_conf="${site_flavour_phpfpm_pool_conf:-$ngineerx_conf_dir/flavours/default/php-fpm.pool.conf}"
-
-  echo "+++ Creating directory structure"
-  mkdir -p $site_root/{www,log,tmp,certs,sessions}
-
-  # Create the certs
-  create_cert $site_root/certs/privkey.pem $site_root/certs/fullchain.pem
-
-  # Determine the next usable port number for the php-fpm pool
-  php_pool_port=`cat $ngineerx_conf_dir/php-fpm.ports.db`
-
-  # Create user and group $php_user and add $nginx_user to the group $php_user
-  echo "+++ Creating user and adding user $nginx_user to group $php_user"
-  pw user add $php_user -s /sbin/nologin
-  pw group mod $php_user -m $nginx_user
-
-  echo "+++ Creating config files"
-  cp $site_flavour_nginx_conf $nginx_conf_dir/sites-avaliable/$site_domain.conf
-  cp $site_flavour_phpfpm_pool_conf $phpfpm_conf_dir/$site_domain.conf
-
-  write_config $nginx_conf_dir/sites-avaliable/$site_domain.conf
-  write_config $phpfpm_conf_dir/$site_domain.conf
-
-  # Copy sample files if they exist in flavour
-  if [ -d "$site_flavour_dir/www" ]; then
-    echo "+++ Copying sample files"
-    cp -r $site_flavour_dir/www/* $site_webroot
-  fi
-
-  # Set strong permissions to files and directories
-  echo "+++ Set strong permissions to files and directories"
-  chown -R $php_user:$php_user $site_root/
-  chmod 750 $site_root
-  chmod 750 $site_root/*
-  chmod 400 $site_root/certs/*
-
-  # Link nginx config file from sites-avaliable to sites-enabled
-  echo "+++ Enabling Server $site_domain"
-  ln -sf $nginx_conf_dir/sites-avaliable/$site_domain.conf $nginx_conf_dir/sites-enabled/$site_domain.conf
-
-  # Add config files to newsyslog config
-  echo "+++ Enabling logrotation"
-  echo "$site_root/log/nginx.access.log 644 12 * \$W0D23 J $nginxpid 30" >> $ngineerx_conf_dir/ngineerx.newsyslog.conf
-  echo "$site_root/log/nginx.error.log 644 12 * \$W0D23 J $nginxpid 30" >> $ngineerx_conf_dir/ngineerx.newsyslog.conf
-  echo "$site_root/log/phpfpm.slow.log 644 12 * \$W0D23 J $phppid 30" >> $ngineerx_conf_dir/ngineerx.newsyslog.conf
-  echo "$site_root/log/phpfpm.error.log 644 12 * \$W0D23 J $phppid 30" >> $ngineerx_conf_dir/ngineerx.newsyslog.conf
-
-  # Increment php-fpm pool port and store in file
-  echo "$(expr "$php_pool_port" + 1)" > $ngineerx_conf_dir/php-fpm.ports.db
-
-  # Restart stack
-  start_stop_stack_by_script restart
-  ;;
-######################## ngineerx CERT-CREATE ########################
-cert-create)
-  shift; while getopts :d:c:f:w: arg; do case ${arg} in
-    d) domain_args+=("$OPTARG");;
-    k) cert_privkey=${OPTARG};;
-    f) cert_fullchain=${OPTARG};;
-    ?) exerr ${ngineerx_usage_cert-create};;
-    :) exerr ${ngineerx_usage_cert-create};;
-  esac; done; shift $(( ${OPTIND} - 1 ))
-
-  # Get the first domain name. It's used for naming the files and directories
-  site_domain=${domain_args[0]}
-
-  # we need at least one domain name
-  [ ! -d $site_domain ] || exerr ${ngineerx_usage_cert_create}
-
-  echo "+++ Creating certificates"
-  create_cert $cert_privkey $cert_fullchain
-  ;;
-######################## ngineerx CERT-RENEW ########################
-cert-renew)
-
-  echo "+++ Renewing certificates with letsencrypt"
-  $letsencrypt -c
-
-  start_stop_stack_by_script restart
-  ;;
-######################## ngineerx HTPASSWD ########################
-htpasswd)
-  shift; while getopts :u:f: arg; do case ${arg} in
-    u) htpasswd_user=${OPTARG};;
-    f) htpasswd_file=${OPTARG};;
-    ?) exerr ${ngineerx_usage_htpasswd};;
-    :) exerr ${ngineerx_usage_htpasswd};;
-  esac; done; shift $(( ${OPTIND} - 1 ))
-
-  echo "+++ Adding user $htpasswd_user to file $htpasswd_file."
-  printf "$htpasswd_user:`$openssl passwd -apr1`\n" >> $htpasswd_file
-  ;;
-######################## ngineerx DELETE ########################
-delete)
-  shift; while getopts :d: arg; do case ${arg} in
-    d) site_domain=${OPTARG};;
-    ?) exerr ${ngineerx_usage_delete};;
-    :) exerr ${ngineerx_usage_delete};;
-  esac; done; shift $(( ${OPTIND} - 1 ))
-
-  # we need at least a domain name
-  [ ! -d $site_domain ] || exerr ${ngineerx_usage_delete}
-
-  # Delete config files
-  echo "+++ Deleting nginx config for $site_domain"
-  rm $nginx_conf_dir/sites-enabled/$site_domain.conf
-  rm $nginx_conf_dir/sites-avaliable/$site_domain.conf
-
-  echo "+++ Deleting php-fpm config for $site_domain"
-  rm $etc_dir/php-fpm.d/$site_domain.conf
-
-  # Ditch config files of given domain from nginx config
-  echo "+++ Deleting newsyslog config for $site_domain"
-  echo "$(grep -v "$site_domain" $ngineerx_conf_dir/ngineerx.newsyslog.conf)" > $ngineerx_conf_dir/ngineerx.newsyslog.conf
-
-  #[TODO]: Implement a flag for toggeling deletion of content
-  # Delete content from webroot
-  echo "+++ Deleting files for $site_domain"
-  rm -r $site_root
-
-  # Restart stack
-  start_stop_stack_by_script restart
-  ;;
-######################## ngineerx LIST ########################
-list)
-  shift; while getopts : arg; do case ${arg} in
-    ?) exerr ${ngineerx_usage_list};;
-    :) exerr ${ngineerx_usage_list};;
-  esac; done; shift $(( ${OPTIND} - 1 ))
-
-  # get pids for nginx and php-fpm
-  list_nginxpid=$(cat "$nginxpid")
-  list_phppid=$(cat "$phppid")
-
-  [ -z $list_nginxpid ] && list_nginxpid="not running"
-  [ -z $list_phppid ] && list_phppid="not running"
-
-  # set formating options
-  list_header=" %-35s %8s %4s\n"
-  list_format=" %-35s %8s %4s\n"
-  list_data=""
-  list_divider="------------------------------------ -------- ----"
-
-  printf "$list_header" "SITENAME" "STATUS" "POOL"
-
-  echo $list_divider
-
-  for list_file in $nginx_conf_dir/sites-avaliable/*; do
-
-    unset list_phpport
-
-    # format filename
-    list_filename=$(basename "$list_file")
-    list_displayname=$(basename "$list_file" .conf)
-
-    # if config is linked to sites-enabled set status to enabled
-    list_status=`[ -f $nginx_conf_dir/sites-enabled/$list_filename ] && echo "ENABLED" || echo "DISABLED"`
-
-    # grep php-fpm port from config file if it exists
-    if [ -f $phpfpm_conf_dir/$list_filename ] ; then
-      list_phpport=`grep "listen " $phpfpm_conf_dir/$list_filename | cut -d ":" -f2-`;
-    fi
-
-    list_pool="${list_phpport:-N/A}"
-
-    # populate data for printf
-    list_data="$list_data$list_displayname $list_status $list_pool "
-  done
-
-  # Print list
-  printf "$list_format" $list_data
-  echo $list_divider
-  echo "ngineerx Status: nginx PID=$list_nginxpid | php-fpm PID=$list_phppid"
-
-  ;;
-######################## ngineerx ENABLE ########################
-enable)
-  shift; while getopts :d: arg; do case ${arg} in
-    d) site_domain=${OPTARG};;
-    ?) exerr ${ngineerx_usage_enable};;
-    :) exerr ${ngineerx_usage_enable};;
-  esac; done; shift $(( ${OPTIND} - 1 ))
-
-  # we need at least a domain name
-  [ ! -d $site_domain ] || exerr ${ngineerx_usage_enable}
-
-  # Link nginx config file from sites-avaliable to sites-enabled
-  echo "+++ Enabeling $site_domain"
-  ln -sf $nginx_conf_dir/sites-avaliable/$site_domain.conf $nginx_conf_dir/sites-enabled/$site_domain.conf
-
-  # Restart stack
-  start_stop_stack_by_script restart
-  ;;
-######################## ngineerx DISABLE ########################
-disable)
-  shift; while getopts :d: arg; do case ${arg} in
-    d) site_domain=${OPTARG};;
-    ?) exerr ${ngineerx_usage_disable};;
-    :) exerr ${ngineerx_usage_disable};;
-  esac; done; shift $(( ${OPTIND} - 1 ))
-
-  # we need at least a domain name
-  [ ! -d $site_domain ] || exerr ${ngineerx_usage_disable}
-
-  # Delete link  to nginx config file from sites-enabled
-  echo "+++ Disabeling $site_domain"
-  rm $nginx_conf_dir/sites-enabled/$site_domain.conf
-
-  # Restart stack
-  start_stop_stack_by_script restart
-  ;;
-######################## ngineerx SHORTCUT ########################
-*start|*stop|*status|*restart)
-  start_stop_stack_by_script $@
-  ;;
-help)
+  ######################## rmbackup.sh HELP ########################
+  help)
   help 0
   ;;
-:)
+  ######################## ngineerx INSTALL ########################
+  install)
+    init
+    checkPID
+
+    dependencies="$nginx_rc $phpfpm_rc $openssl $dehydrated"
+
+    chat 2 "Checking dependencies"
+    for f in ${dependencies}; do check_dependencies $f; done && chat 2 "Everyting is fine."
+
+    chat 2 "Creating directory structure"
+    chat 3 "mkdir -p $nginx_conf_dir/sites-avaliable"
+    mkdir -p $nginx_conf_dir/sites-avaliable
+    chat 3 "mkdir -p $nginx_conf_dir/sites-enabled"
+    mkdir -p $nginx_conf_dir/sites-enabled
+    chat 3 "mkdir -p $ngineerx_webroot"
+    mkdir -p $ngineerx_webroot
+    chat 3 "mkdir -p  $phpfpm_conf_d"
+    mkdir -p  $phpfpm_conf_d
+    chat 3 "mkdir -p $dehydrated_webroot"
+    mkdir -p $dehydrated_webroot
+
+    chat 2 "Creating neccessary config files"
+    chat 3 "Copying template files to tmp"
+    chat 3 "mkdir -p $ngineerx_temp_dir"
+    mkdir -p $ngineerx_temp_dir
+    chat 3 "mkdir -p $ngineerx_temp_dir/ngineerx"
+    mkdir -p $ngineerx_temp_dir/ngineerx
+    chat 3 "cp /usr/local/share/ngineerx/ngineerx/dehydrated_config $ngineerx_temp_dir/ngineerx/"
+    cp /usr/local/share/ngineerx/ngineerx/dehydrated_config $ngineerx_temp_dir/ngineerx/
+    chat 3 "cp /usr/local/share/ngineerx/ngineerx/dehydrated_hook.sh $ngineerx_temp_dir/ngineerx/"
+    cp /usr/local/share/ngineerx/ngineerx/dehydrated_hook.sh $ngineerx_temp_dir/ngineerx/
+    chat 3 "cp -r /usr/local/share/ngineerx/nginx $ngineerx_temp_dir/"
+    cp -r /usr/local/share/ngineerx/nginx $ngineerx_temp_dir/
+    chat 3 "cp -r /usr/local/share/ngineerx/php* $ngineerx_temp_dir/"
+    cp -r /usr/local/share/ngineerx/php* $ngineerx_temp_dir/
+
+    ## modify all template files for concrete usage scenario
+
+    for f in $(find $ngineerx_temp_dir -type f); do
+      chat 3 "write_config $f"
+      write_config "$f"
+    done
+
+    ## Copy config files to $basedir and delete tmp files
+    chat 3 "cp -rf $ngineerx_temp_dir/* $basedir"
+    cp -rf $ngineerx_temp_dir/* $basedir
+    chat 3 "rm -r $ngineerx_temp_dir"
+    rm -r $ngineerx_temp_dir
+
+    chat 3 "cp -r /usr/local/share/ngineerx/ngineerx/flavours $ngineerx_conf_dir"
+    cp -r /usr/local/share/ngineerx/ngineerx/flavours $ngineerx_conf_dir
+    chat 3 "chmod +x $dehydrated_hook_file"
+    chmod +x $dehydrated_hook_file
+
+    chat 3 "touch $dehydrated_domains_txt"
+    touch $dehydrated_domains_txt
+
+    ## Create php-fpm.ports.db if it doesn't exist.
+    if [ ! -f "$ngineerx_php_ports_db" ]; then
+      chat 2 "$ngineerx_php_ports_db doesn't exist. I'll create it."
+      chat 3 "echo $ngineerx_php_pool_port > $ngineerx_php_ports_db"
+      echo $ngineerx_php_pool_port > $ngineerx_php_ports_db
+    fi
+
+    ## Create dhparam.pem only if it doesn't exist.
+    if [ ! -f "$nginx_conf_dir/dhparam.pem" ]; then
+      chat 2 "Creating diffie hellman parameters with $nginx_dhkeysize bit keysize. This may take a long time."
+      chat 3 "$openssl dhparam -out $nginx_dh_file $nginx_dhkeysize"
+      $openssl dhparam -out $nginx_dh_file $nginx_dhkeysize
+    fi
+
+    chat 2 "Enabling logrotation"
+    chat 3 "mkdir -p $newsyslog_conf_d"
+    mkdir -p $newsyslog_conf_d
+
+    chat 2 "Setting up cron"
+    chat 3 "mkdir -p $cron_conf_d"
+    mkdir -p $cron_conf_d
+    chat 3 "echo \"0 0 * * * root $0 cert-renew > /dev/null 2>&1\" > $cron_conf_d/ngineerx"
+    echo "0 0 * * * root $0 cert-renew > /dev/null 2>&1" > $cron_conf_d/ngineerx
+
+    chat 2 "Registering account at letsencrypt"
+    chat 3 "$dehydrated ${dehydrated_args} ${dehydrated_args_install}"
+    $dehydrated ${dehydrated_args} ${dehydrated_args_install}
+
+    start_stop_stack_by_script start
+  ;;
+  ######################## ngineerx CREATE ########################
+  create)
+    shift; while getopts :d:uc:f: arg; do case ${arg} in
+      d) domains=${OPTARG};;
+      u) php_user=${OPTARG};;
+      f) site_flavour=${OPTARG};;
+      ?) chat 1 ${ngineerx_usage_create};;
+      :) chat 1 ${ngineerx_usage_create};;
+    esac; done; shift $(( ${OPTIND} - 1 ))
+
+    init
+    checkPID
+
+    # Get the first domain name. It's used for naming the files and directories
+    chat 3 site_domain=`echo ${domains} | cut -f 1 -d " "`
+    site_domain=`echo ${domains} | cut -f 1 -d " "`
+    chat 3 "site_domain=`echo ${domains} | cut -f 1 -d " "`"
+    chat 3 "site_domain: $site_domain"
+    chat 2 "Domain name that is used for the directory structure is $site_domain."
+
+    site_root="$ngineerx_webroot/$site_domain"
+    chat 3 "site_root: $site_root"
+    site_webroot="$site_root/www"
+    chat 3 "site_webroot: $site_webroot"
+
+    # we need at least one domain name
+    [ ! -d $site_domain ] || chat 1 ${ngineerx_usage_create}
+
+    ## if no flavour is specified take default
+    site_flavour="${site_flavour:-default}"
+    chat 2 "Flavour $site_flavour will be used for site creation."
+    chat 3 "site_flavour: $site_flavour"
+
+    ## Check if flavour directory exists, otherwise exit
+    [ -d "$ngineerx_conf_dir/flavours/$site_flavour" ] && site_flavour_dir="$ngineerx_conf_dir/flavours/$site_flavour" || chat 1 "ERROR: flavour $site_flavour not found in $ngineerx_flavour_dir."
+
+    ## Check if nginx and php config files exist in flavour directory
+    [ -f $site_flavour_dir/nginx.server.conf ] && site_flavour_nginx_conf="$site_flavour_dir/nginx.server.conf"
+    [ -f $site_flavour_dir/php-fpm.pool.conf ] && site_flavour_phpfpm_pool_conf="$site_flavour_dir/php-fpm.pool.conf"
+
+    ## Otherwise take them from default flavour
+    site_flavour_nginx_conf="${site_flavour_nginx_conf:-$ngineerx_flavour_dir/default/nginx.server.conf}"
+    site_flavour_phpfpm_pool_conf="${site_flavour_phpfpm_pool_conf:-$ngineerx_flavour_dir/default/php-fpm.pool.conf}"
+
+    chat 2 "Creating directory structure."
+    chat 3 "mkdir -p $site_root/www"
+    mkdir -p $site_root/www
+    chat 3 "mkdir -p $site_root/log"
+    mkdir -p $site_root/log
+    chat 3 "mkdir -p $site_root/tmp"
+    mkdir -p $site_root/tmp
+    chat 3 "mkdir -p $site_root/certs"
+    mkdir -p $site_root/certs
+    chat 3 "mkdir -p $site_root/sessions"
+    mkdir -p $site_root/sessions
+
+    # Create the certs
+    chat 3 "create_cert $domains"
+    create_cert $domains
+
+    # Determine the next usable port number for the php-fpm pool
+    chat 2 "Getting port for php-fpm-pool"
+    chat 3 "ngineerx_php_pool_port=`cat $ngineerx_php_ports_db`"
+    ngineerx_php_pool_port=`cat $ngineerx_php_ports_db`
+    chat 3 "ngineerx_php_pool_port: $ngineerx_php_pool_port"
+
+    # Create user and group $php_user and add $nginx_user to the group $php_user
+    chat 2 "Creating user and adding user $ngineerx_nginx_user to group $ngineerx_php_user"
+    chat 3 "pw user add $ngineerx_php_user -s /sbin/nologin"
+    pw user add $ngineerx_php_user -s /sbin/nologin
+    chat 3 "pw group mod $ngineerx_php_user -m $ngineerx_nginx_user"
+    pw group mod $ngineerx_php_user -m $ngineerx_nginx_user
+
+    chat 2 "Creating config files"
+    chat 3 "cp $site_flavour_nginx_conf $nginx_sites_avaliable/$site_domain.conf"
+    cp $site_flavour_nginx_conf $nginx_sites_avaliable/$site_domain.conf
+    chat 3 "write_config $nginx_sites_avaliable/$site_domain.conf"
+    write_config $nginx_sites_avaliable/$site_domain.conf
+    chat 3 "cp $site_flavour_phpfpm_pool_conf $phpfpm_conf_d/$site_domain.conf"
+    cp $site_flavour_phpfpm_pool_conf $phpfpm_conf_d/$site_domain.conf
+    chat 3 "write_config $phpfpm_conf_d/$site_domain.conf"
+    write_config $phpfpm_conf_d/$site_domain.conf
+
+    # Copy sample files if they exist in flavour
+    if [ -d "$site_flavour_dir/www" ]; then
+      chat 2 "Copying sample files"
+      chat 3 "cp -r $site_flavour_dir/www/* $site_webroot"
+      cp -r $site_flavour_dir/www/* $site_webroot
+    fi
+
+    # Set strong permissions to files and directories
+    chat 2 "Setting strong permissions to files and directories."
+    chat 3 "chown -R $phpfpm_user:$phpfpm_user $site_root/"
+    chown -R $phpfpm_user:$phpfpm_user $site_root/
+    chat 3 "chmod 750 $site_root"
+    chmod 750 $site_root
+    chat 3 "chmod 750 $site_root/*"
+    chmod 750 $site_root/*
+    chat 3 "chmod 400 $site_root/certs/*"
+    chmod 400 $site_root/certs/*
+
+    # Link nginx config file from sites-avaliable to sites-enabled
+    chat 2 "Enabling Server $site_domain"
+    chat 3 "ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf"
+    ln -sf "$nginx_sites_avaliable/$site_domain.conf" "$nginx_sites_enabled/$site_domain.conf"
+
+    # Add config files to newsyslog config
+    chat 2 "Enabling logrotation"
+    chat 3 "echo \"$site_root/log/nginx.access.log 644 12 * \$W0D23 J $nginx_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
+    echo "$site_root/log/nginx.access.log 644 12 * \$W0D23 J $nginx_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
+    chat 3 "echo \"$site_root/log/nginx.error.log 644 12 * \$W0D23 J $nginx_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
+    echo "$site_root/log/nginx.error.log 644 12 * \$W0D23 J $nginx_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
+    chat 3 "echo \"$site_root/log/phpfpm.slow.log 644 12 * \$W0D23 J $phpfpm_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
+    echo "$site_root/log/phpfpm.slow.log 644 12 * \$W0D23 J $phpfpm_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
+    chat 3 "echo \"$site_root/log/phpfpm.error.log 644 12 * \$W0D23 J $phpfpm_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
+    echo "$site_root/log/phpfpm.error.log 644 12 * \$W0D23 J $phpfpm_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
+
+    # Increment php-fpm pool port and store in file
+    echo "$(expr "$ngineerx_php_pool_port" + 1)" > $ngineerx_php_ports_db
+
+    # Restart stack
+    start_stop_stack_by_script restart
+  ;;
+  ######################## ngineerx DELETE ########################
+  delete)
+    shift; while getopts :d: arg; do case ${arg} in
+      d) site_domain=${OPTARG};;
+      ?) exerr ${ngineerx_usage_delete};;
+      :) exerr ${ngineerx_usage_delete};;
+    esac; done; shift $(( ${OPTIND} - 1 ))
+
+    checkPID
+    init
+
+    # we need at least a domain name
+    [ ! -d $site_domain ] || chat 1 ${ngineerx_usage_delete}
+
+    site_root="$ngineerx_webroot/$site_domain"
+
+    # Delete config files
+    chat 2 "Deleting nginx config for $site_domain"
+    chat 3 "rm \"$nginx_sites_enabled/$site_domain.conf\""
+    rm "$nginx_sites_enabled/$site_domain.conf"
+    chat 3 "rm \"$nginx_sites_avaliable/$site_domain.conf\""
+    rm "$nginx_sites_avaliable/$site_domain.conf"
+
+    chat 2 "Deleting php-fpm config for $site_domain"
+    chat 3 "rm \"$phpfpm_conf_d/$site_domain.conf\""
+    rm "$phpfpm_conf_d/$site_domain.conf"
+
+    chat 2 "Deleting newsyslog config for $site_domain"
+    chat 3 "rm \"$newsyslog_conf_d/$site_domain.conf\""
+    rm "$newsyslog_conf_d/$site_domain.conf"
+
+    chat 2 "Deleting $site_domain from $dehydrated_domains_txt."
+    chat 3 "sed -i \"\" \"/\"${site_domain}\"/d\" ${dehydrated_domains_txt}"
+    sed -i "" "/"${site_domain}"/d" ${dehydrated_domains_txt}
+    chat 2 "Moving certs to archive."
+    chat 3 "$dehydrated ${dehydrated_args} --gc"
+    $dehydrated ${dehydrated_args} -gc
+
+    #[TODO]: Implement a flag for toggeling deletion of content
+    # Delete content from webroot
+    echo "+++ Deleting files for $site_domain"
+    rm -rI $site_root
+
+    # Restart stack
+    start_stop_stack_by_script restart
+  ;;
+  ######################## ngineerx ENABLE ########################
+  enable)
+    shift; while getopts :d: arg; do case ${arg} in
+      d) site_domain=${OPTARG};;
+      ?) exerr ${ngineerx_usage_enable};;
+      :) exerr ${ngineerx_usage_enable};;
+    esac; done; shift $(( ${OPTIND} - 1 ))
+
+    checkPID
+    init
+
+    # we need at least a domain name
+    [ ! -d $site_domain ] || chat 1 ${ngineerx_usage_enable}
+
+    # Link nginx config file from sites-avaliable to sites-enabled
+    chat 2 "Enabeling $site_domain"
+    chat 3 "ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf"
+    ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf
+
+    # Restart stack
+    start_stop_stack_by_script restart
+  ;;
+  ######################## ngineerx DISABLE ########################
+  disable)
+    shift; while getopts :d: arg; do case ${arg} in
+      d) site_domain=${OPTARG};;
+      ?) exerr ${ngineerx_usage_disable};;
+      :) exerr ${ngineerx_usage_disable};;
+    esac; done; shift $(( ${OPTIND} - 1 ))
+
+    checkPID
+    init
+
+    # we need at least a domain name
+    [ ! -d $site_domain ] || chat 1 ${ngineerx_usage_disable}
+
+    # Delete link  to nginx config file from sites-enabled
+    chat 2 "Disabeling $site_domain"
+    chat 3 "rm $nginx_sites_enabled/$site_domain.conf"
+    rm $nginx_sites_enabled/$site_domain.conf
+
+    # Restart stack
+    start_stop_stack_by_script restart
+  ;;
+  ######################## ngineerx CERT-RENEW ########################
+  cert-renew)
+    checkPID
+    init
+
+    chat 2 "Renewing certificates."
+    chat 3 "$dehydrated ${dehydrated_args} -c"
+    $dehydrated ${dehydrated_args} -c
+
+    start_stop_stack_by_script restart
+  ;;
+  ######################## ngineerx LIST ########################
+  list)
+    init
+
+    # get pids for nginx and php-fpm
+    list_nginx_pid=`cat "$ngineerx_pid_file"`
+    list_phpfpm_pid=`cat "$phpfpm_pid_file"`
+
+    [ -z $list_nginx_pid ] && list_nginx_pid="not running"
+    [ -z $list_phpfpm_pid ] && list_phpfpm_pid="not running"
+
+    # set formating options
+    list_header=" %-35s %8s %4s\n"
+    list_format=" %-35s %8s %4s\n"
+    list_data=""
+    list_divider="------------------------------------ -------- ----"
+
+    printf "$list_header" "SITENAME" "STATUS" "POOL"
+
+    echo $list_divider
+
+    for list_file in $nginx_sites_avaliable/*; do
+
+      unset list_phpfpm_pool_port
+
+      # format filename
+      list_filename=$(basename "$list_file")
+      list_displayname=$(basename "$list_file" .conf)
+
+      # if config is linked to sites-enabled set status to enabled
+      list_status=`[ -f $nginx_sites_enabled/$list_filename ] && echo "ENABLED" || echo "DISABLED"`
+
+      # grep php-fpm port from config file if it exists
+      if [ -f $phpfpm_conf_dir/$list_filename ] ; then
+        list_phpfpm_pool_port=`grep "listen " $phpfpm_conf_dir/$list_filename | cut -d ":" -f2-`;
+      fi
+
+      list_pool="${list_phpfpm_pool_port:-N/A}"
+
+      # populate data for printf
+      list_data="$list_data$list_displayname $list_status $list_pool "
+    done
+
+    # Print list
+    printf "$list_format" $list_data
+    echo $list_divider
+    echo "ngineerx Status: nginx PID=$list_nginx_pid | php-fpm PID=$list_phpfpm_pid"
+  ;;
+  *)
   help 1
   ;;
 esac
-
-# Reset Variables
-unset cert_path
-unset cert_privkey
-unset cert_fullchain
-unset counter
-unset dhkeysize
-unset conf_replace
-unset domain_args
-unset domains
-unset etc_dir
-unset le_email
-unset le_keysize
-unset le_options
-unset letsencrypt
-unset letsencrypt_conf_dir
-unset letsencrypt_webroot
-unset list_data
-unset list_displayname
-unset list_displayname
-unset list_divider
-unset list_file
-unset list_filename
-unset list_filename
-unset list_format
-unset list_header
-unset list_nginxpid
-unset list_phppid
-unset list_phpport
-unset list_status
-unset list_status
-unset list_webroot
-unset ngineerx
-unset ngineerx_conf_dir
-unset ngineerx_usage_create
-unset ngineerx_usage_delete
-unset ngineerx_usage_disable
-unset ngineerx_usage_enable
-unset ngineerx_usage_ngineerx
-unset ngineerx_webroot
-unset nginx
-unset nginx_conf_dir
-unset nginx_includes
-unset nginx_domains
-unset nginx_user
-unset nginxpid
-unset openssl
-unset openssl_subj
-unset openssl_subj_c
-unset openssl_subj_emailaddress
-unset openssl_subj_l
-unset openssl_subj_o
-unset openssl_subj_ou
-unset openssl_subj_st
-unset php_pool_port
-unset php_user
-unset phpfpm
-unset phpfpm_conf_dir
-unset phppid
-unset htpasswd_file
-unset htpasswd_user
-unset server_ip
-unset site_domain
-unset site_root
-unset site_webroot
-unset site_flavour
-unset site_flavour_dir
-unset site_flavour_nginx_conf
-unset site_flavour_phpfpm_pool_conf
-unset val
-unset tmp_dir
-unset sed_replace
-
-exit 0
