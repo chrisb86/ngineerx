@@ -572,8 +572,8 @@ case "$1" in
     init
 
     # get pids for nginx and php-fpm
-    list_nginx_pid=`cat "$ngineerx_pid_file"`
-    list_phpfpm_pid=`cat "$phpfpm_pid_file"`
+    list_nginx_pid=`touch "$ngineerx_pid_file" && cat "$ngineerx_pid_file"`
+    list_phpfpm_pid=`touch "$phpfpm_pid_file" && cat "$phpfpm_pid_file"`
 
     [ -z $list_nginx_pid ] && list_nginx_pid="not running"
     [ -z $list_phpfpm_pid ] && list_phpfpm_pid="not running"
