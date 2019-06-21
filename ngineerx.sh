@@ -607,8 +607,8 @@ case "$1" in
         list_status=`[ -f $nginx_sites_enabled/$list_filename ] && echo "ENABLED" || echo "DISABLED"`
 
         # grep php-fpm port from config file if it exists
-        if [ -f $phpfpm_conf_dir/$list_filename ] ; then
-          list_phpfpm_pool_port=`grep "listen " $phpfpm_conf_dir/$list_filename | cut -d ":" -f2-`;
+        if [ -f $phpfpm_conf_d/$list_filename ] ; then
+          list_phpfpm_pool_port=`grep "listen " $phpfpm_conf_d/$list_filename | cut -d ":" -f2-`;
         fi
 
         list_pool="${list_phpfpm_pool_port:-N/A}"
