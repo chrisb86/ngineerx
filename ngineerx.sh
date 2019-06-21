@@ -578,37 +578,44 @@ case "$1" in
     [ -z $list_nginx_pid ] && list_nginx_pid="not running"
     [ -z $list_phpfpm_pid ] && list_phpfpm_pid="not running"
 
-    # set formating options
-    list_header=" %-35s %8s %4s\n"
-    list_format=" %-35s %8s %4s\n"
-    list_data=""
-    list_divider="------------------------------------ -------- ----"
+    if [ "$(ls -A $nginx_sites_avaliable)" ]; then
+      # rest of the logic
+      # set formating options
+      list_header=" %-35s %8s %4s\n"
+      list_format=" %-35s %8s %4s\n"
+      list_data=""
+      list_divider="------------------------------------ -------- ----"
 
-    printf "$list_header" "SITENAME" "STATUS" "POOL"
+      printf "$list_header" "SITENAME" "STATUS" "POOL"
 
-    echo $list_divider
+      echo $list_divider
 
-    for list_file in $nginx_sites_avaliable/*; do
+      for list_file in $nginx_sites_avaliable/*; do
 
-      unset list_phpfpm_pool_port
+        unset list_phpfpm_pool_port
 
-      # format filename
-      list_filename=$(basename "$list_file")
-      list_displayname=$(basename "$list_file" .conf)
+        # format filename
+        list_filename=$(basename "$list_file")
+        list_displayname=$(basename "$list_file" .conf)
 
-      # if config is linked to sites-enabled set status to enabled
-      list_status=`[ -f $nginx_sites_enabled/$list_filename ] && echo "ENABLED" || echo "DISABLED"`
+        # if config is linked to sites-enabled set status to enabled
+        list_status=`[ -f $nginx_sites_enabled/$list_filename ] && echo "ENABLED" || echo "DISABLED"`
 
-      # grep php-fpm port from config file if it exists
-      if [ -f $phpfpm_conf_dir/$list_filename ] ; then
-        list_phpfpm_pool_port=`grep "listen " $phpfpm_conf_dir/$list_filename | cut -d ":" -f2-`;
-      fi
+        # grep php-fpm port from config file if it exists
+        if [ -f $phpfpm_conf_dir/$list_filename ] ; then
+          list_phpfpm_pool_port=`grep "listen " $phpfpm_conf_dir/$list_filename | cut -d ":" -f2-`;
+        fi
 
-      list_pool="${list_phpfpm_pool_port:-N/A}"
+        list_pool="${list_phpfpm_pool_port:-N/A}"
 
-      # populate data for printf
-      list_data="$list_data$list_displayname $list_status $list_pool "
-    done
+        # populate data for printf
+        list_data="$list_data$list_displayname $list_status $list_pool "
+      done
+    else
+        echo ""
+        echo "No sites defined yet."
+        echo "Run $ngineerx install -d \"DOMAINS\" to create one."
+    fi
 
     # Print list
     printf "$list_format" $list_data
