@@ -134,6 +134,9 @@ init () {
   phpfpm_pid_file="${PHPFPM_PID_FILE:-/var/run/php-fpm.pid}"
   openssl="${OPENSSL:-/usr/bin/openssl}"
 
+  ## Check if ngineerx is installed properly by checking if default flavour exists.
+  [ "$COMMAND_INSTALL" != true ] && [ ! -d "$ngineerx_flavour_dir/default" ] && chat 1 "It seems that ngineerx is not installed properly. Please run $ngineerx install."
+
   chat 2 "Starting $ngineerx with PID $ngineerx_pid."
 
   chat 3 "ngineerx_host_ip: $ngineerx_host_ip"
@@ -257,6 +260,8 @@ case "$1" in
   ;;
   ######################## ngineerx INSTALL ########################
   install)
+    COMMAND_INSTALL=true
+
     init
     checkPID
 
