@@ -450,7 +450,7 @@ case "$1" in
     chmod 400 $site_root/certs/*
 
     # Link nginx config file from sites-avaliable to sites-enabled
-    chat 2 "Enabling Server $site_domain"
+    chat 2 "Enabling site $site_domain"
     chat 3 "ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf"
     ln -sf "$nginx_sites_avaliable/$site_domain.conf" "$nginx_sites_enabled/$site_domain.conf"
 
