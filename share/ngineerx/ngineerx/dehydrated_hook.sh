@@ -89,9 +89,14 @@ deploy_cert() {
     # cp "${KEYFILE}" "${FULLCHAINFILE}" /etc/nginx/ssl/; chown -R nginx: /etc/nginx/ssl
     # systemctl reload nginx
 
-    echo "Deploying certificates for ${DOMAIN}".
-    cp -f ${KEYFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
-    cp -f ${FULLCHAINFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
+    if [ -d "@@ngineerx_webroot@@/${DOMAIN}/certs/" ]; then
+      echo "Deploying certificates for ${DOMAIN}".
+      cp -f ${KEYFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
+      cp -f ${FULLCHAINFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
+    else
+      echo "Your certificate is located at ${FULLCHAINFILE}."
+      echo "Your key is located at ${KEYFILE}."
+    fi
 }
 
 deploy_ocsp() {
