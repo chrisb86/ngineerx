@@ -2,7 +2,7 @@
 
 ``ngineerx`` is a low dependency tool to configure and manage an encrypted nginx and php-fpm stack on FreeBSD systems.
 
-It creates a nginx server config, the neccessary directory structure and a php-fpm pool for every site that nginx delivers. Every site that's created will be listening on IPv4 and IPv6 and will encrypt all traffic by default with certificates created with letsencrypt. All the logs are rotated by default. The nginx config is created with privacy and security in mind. 
+It creates a nginx server config, the neccessary directory structure and a php-fpm pool for every site that nginx delivers. Every site that's created will be listening on IPv4 and IPv6 and will encrypt all traffic by default with certificates created with letsencrypt. All the logs are rotated by default. The nginx config is created with privacy and security in mind.
 
 ```text
 Usage: ngineerx command {params}
@@ -12,6 +12,7 @@ create          Create new site
  -d "DOMAINS"     Domains that should be served by a site
  [-u PHP_USER]    User that should be used for PHP
  [-f FLAVOUR]     Flavour that should be used to create a site
+ [-c]             Only create certificates without directory structure
 delete          Delete a site
  -d DOMAIN        Main domain of a site that should be deleted
 enable          Enable a site in nginx
@@ -101,6 +102,8 @@ you can find the default flavour at ``/usr/local/etc/ngineerx/flavours/default``
 
 If the files ``nginx.server.conf`` or ``php-fpm.pool.conf`` are not found in the flavour directory, the default ones will be used.
 
+### Create just a certificate
+If you want to create just a certificate without directory structure beacause you want to use it for e.g. your mail oder ftp server you can run ```$ ngineerx create -c -d "mail.example.com"```.
 
 ### Certificate renewal
 

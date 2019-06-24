@@ -55,7 +55,7 @@ help () {
   echo " -d \"DOMAINS\"     Domains that should be served by a site"
   echo " [-u PHP_USER]    User that should be used for PHP"
   echo " [-f FLAVOUR]     Flavour that should be used to create a site"
-  echo " [-c]             Only create certificates without directory structure."
+  echo " [-c]             Only create certificates without directory structure"
   echo "delete          Delete a site"
   echo " -d DOMAIN        Main domain of a site that should be deleted"
   echo "enable          Enable a site in nginx"
