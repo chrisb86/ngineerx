@@ -13,6 +13,7 @@ create          Create new site
  [-u PHP_USER]    User that should be used for PHP
  [-f FLAVOUR]     Flavour that should be used to create a site
  [-c]             Only create certificates without directory structure
+ [-p]             Create a site wothout a PHP handler.
 delete          Delete a site
  -d DOMAIN        Main domain of a site that should be deleted
 enable          Enable a site in nginx
