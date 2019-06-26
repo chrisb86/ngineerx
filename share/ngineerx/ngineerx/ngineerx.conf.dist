@@ -36,7 +36,7 @@
 #NGINEERX_FLAVOUR_DIR="$ngineerx_conf_dir/flavours"
 
 ## Directory where the data for websites is stored
-#NGINEERX_WEBROOT="/usr/local/www"
+#NGINEERX_WEBROOT="/usr/local/www/ngineerx"
 
 ## Temp directory where nginx will prepare config files during installation
 #NGINEERX_TEMP_DIR="/tmp/ngineerx"

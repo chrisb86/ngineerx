@@ -111,7 +111,7 @@ init () {
   ngineerx_php_user="${NGINEERX_PHP_USER:-www_php}"
   ngineerx_nginx_user="${NGINEERX_NGINX_USER:-www}"
   ngineerx_flavour_dir="${NGINEERX_FLAVOUR_DIR:-$ngineerx_conf_dir/flavours}"
-  ngineerx_webroot="${NGINEERX_WEBROOT:-/usr/local/www}"
+  ngineerx_webroot="${NGINEERX_WEBROOT:-/usr/local/www/ngineerx}"
   ngineerx_temp_dir="${NGINEERX_TEMP_DIR:-/tmp/ngineerx}"
   dehydrated="${DEHYDRATED:-/usr/local/bin/dehydrated}"
   dehydrated_conf_file="${DEHYDRATED_CONF_FILE:-$ngineerx_conf_dir/dehydrated_config}"
