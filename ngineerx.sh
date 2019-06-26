@@ -452,8 +452,8 @@ case "$1" in
 
       # Set strong permissions to files and directories
       chat 2 "Setting strong permissions to files and directories."
-      chat 3 "chown -R $phpfpm_user:$phpfpm_user $site_root"
-      chown -R $phpfpm_user:$phpfpm_user $site_root
+      chat 3 "chown -R $ngineerx_php_user:$ngineerx_php_user $site_root"
+      chown -R $ngineerx_php_user:$ngineerx_php_user $site_root
       chat 3 "chmod 750 $site_root"
       chmod 750 $site_root
       chat 3 "chmod 750 $site_root/*"
