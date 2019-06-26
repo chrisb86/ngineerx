@@ -414,7 +414,7 @@ case "$1" in
       pw group mod $ngineerx_php_user -m $ngineerx_nginx_user
 
       if [ "$no_php" != true ]; then
-        [ -f $site_flavour_dir/nginx.server.conf ] && site_flavour_nginx_conf="$site_flavour_dir/nginx.conf"
+        [ -f $site_flavour_dir/nginx.conf ] && site_flavour_nginx_conf="$site_flavour_dir/nginx.conf"
         site_flavour_nginx_conf="${site_flavour_nginx_conf:-$ngineerx_flavour_dir/default/nginx.conf}"
 
         ## Check if php config file exist in flavour directory. Otherwise take it from default flavour
@@ -635,7 +635,7 @@ case "$1" in
     else
         echo ""
         echo "No sites defined yet."
-        echo "Run $ngineerx install -d \"DOMAINS\" to create one."
+        echo "Run $ngineerx create -d \"DOMAINS\" to create one."
     fi
 
     # Print list
