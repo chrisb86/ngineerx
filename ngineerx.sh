@@ -272,7 +272,7 @@ case "$1" in
   chat 2 "Checking dependencies"
   for f in ${dependencies}; do check_dependencies $f; done && chat 2 "Everyting is fine."
 
-  chat 2 "Creating directory structure"
+  chat 0 "Creating directory structure"
   chat 3 "mkdir -p $nginx_conf_dir/sites-avaliable"
   mkdir -p $nginx_conf_dir/sites-avaliable
   chat 3 "mkdir -p $nginx_conf_dir/sites-enabled"
@@ -286,8 +286,8 @@ case "$1" in
   chat 3 "mkdir -p $dehydrated_webroot"
   mkdir -p $dehydrated_webroot
 
-  chat 2 "Creating neccessary config files"
-  chat 3 "Copying template files to tmp"
+  chat 0 "Creating neccessary config files"
+  chat 2 "Copying template files to tmp"
   chat 3 "mkdir -p $ngineerx_temp_dir"
   mkdir -p $ngineerx_temp_dir
   chat 3 "mkdir -p $ngineerx_temp_dir/ngineerx"
@@ -344,17 +344,17 @@ case "$1" in
     $openssl dhparam -out $nginx_dh_file $nginx_dhkeysize
   fi
 
-  chat 2 "Enabling logrotation"
+  chat 0 "Enabling logrotation"
   chat 3 "mkdir -p $newsyslog_conf_d"
   mkdir -p $newsyslog_conf_d
 
-  chat 2 "Setting up cron"
+  chat 0 "Setting up cron"
   chat 3 "mkdir -p $cron_conf_d"
   mkdir -p $cron_conf_d
   chat 3 "echo \"0 0 * * * root $0 cert-renew > /dev/null 2>&1\" > $cron_conf_d/ngineerx"
   echo "0 0 * * * root $0 cert-renew > /dev/null 2>&1" > $cron_conf_d/ngineerx
 
-  chat 2 "Registering account at letsencrypt"
+  chat 0 "Registering account at letsencrypt"
   chat 3 "$dehydrated ${dehydrated_args} ${dehydrated_args_install}"
   $dehydrated ${dehydrated_args} ${dehydrated_args_install}
 
@@ -363,106 +363,130 @@ case "$1" in
 
   ######################## ngineerx CREATE ########################
   create)
-  shift; while getopts :d:u:cpf: arg; do case ${arg} in
-  d) domains=${OPTARG};;
-  u) php_user=${OPTARG};;
-  c) cert_only=true;;
-  p) no_php=true;;
-  f) site_flavour=${OPTARG};;
-  ?) chat 1 ${ngineerx_usage_create};;
-  :) chat 1 ${ngineerx_usage_create};;
-esac; done; shift $(( ${OPTIND} - 1 ))
+    shift; while getopts :d:u:cpf: arg; do case ${arg} in
+    d) domains=${OPTARG};;
+    u) php_user=${OPTARG};;
+    c) cert_only=true;;
+    p) no_php=true;;
+    f) site_flavour=${OPTARG};;
+    ?) chat 1 ${ngineerx_usage_create};;
+    :) chat 1 ${ngineerx_usage_create};;
+  esac; done; shift $(( ${OPTIND} - 1 ))
 
-init
-checkPID
+  init
+  checkPID
 
-# Get the first domain name. It's used for naming the files and directories of a site
-chat 3 site_domain=`echo ${domains} | cut -f 1 -d " "`
-site_domain=`echo ${domains} | cut -f 1 -d " "`
-chat 3 "site_domain=`echo ${domains} | cut -f 1 -d " "`"
-chat 3 "site_domain: $site_domain"
-chat 2 "Domain name that is used for the directory structure is $site_domain."
+  # Get the first domain name. It's used for naming the files and directories of a site
+  chat 3 site_domain=`echo ${domains} | cut -f 1 -d " "`
+  site_domain=`echo ${domains} | cut -f 1 -d " "`
+  chat 3 "site_domain=`echo ${domains} | cut -f 1 -d " "`"
+  chat 3 "site_domain: $site_domain"
+  chat 2 "Domain name that is used for the directory structure is $site_domain."
 
-# we need at least one domain name
-[ ! -d $site_domain ] || chat 1 ${ngineerx_usage_create}
+  # we need at least one domain name
+  [ ! -d $site_domain ] || chat 1 ${ngineerx_usage_create}
 
-## Check if cert_only is set. If not, create site directories and configs.
-if [ "$cert_only" != true ]; then
-  site_root="$ngineerx_webroot/$site_domain"
-  chat 3 "site_root: $site_root"
-  site_webroot="$site_root/www"
-  chat 3 "site_webroot: $site_webroot"
+  ## Check if cert_only is set. If not, create site directories and configs.
+  if [ "$cert_only" != true ]; then
+    site_root="$ngineerx_webroot/$site_domain"
+    chat 3 "site_root: $site_root"
+    site_webroot="$site_root/www"
+    chat 3 "site_webroot: $site_webroot"
 
-  ## if no flavour is specified take default
-  site_flavour="${site_flavour:-default}"
-  chat 2 "Flavour $site_flavour will be used for site creation."
-  chat 3 "site_flavour: $site_flavour"
+    ## if no flavour is specified take default
+    site_flavour="${site_flavour:-default}"
+    chat 2 "Flavour $site_flavour will be used for site creation."
+    chat 3 "site_flavour: $site_flavour"
 
-  ## Check if flavour directory exists, otherwise exit
-  [ -d "$ngineerx_conf_dir/flavours/$site_flavour" ] && site_flavour_dir="$ngineerx_conf_dir/flavours/$site_flavour" || chat 1 "ERROR: flavour $site_flavour not found in $ngineerx_flavour_dir."
+    ## Check if flavour directory exists, otherwise exit
+    [ -d "$ngineerx_conf_dir/flavours/$site_flavour" ] && site_flavour_dir="$ngineerx_conf_dir/flavours/$site_flavour" || chat 1 "ERROR: flavour $site_flavour not found in $ngineerx_flavour_dir."
 
-  ## Check if nginx config file exist in flavour directory. Otherwise take it from default flavour
-  [ -f $site_flavour_dir/nginx.server.conf ] && site_flavour_nginx_conf="$site_flavour_dir/nginx.no-php.conf"
-  site_flavour_nginx_conf="${site_flavour_nginx_conf:-$ngineerx_flavour_dir/default/nginx.no-php.conf}"
+    ## Check if nginx config file exist in flavour directory. Otherwise take it from default flavour
+    [ -f $site_flavour_dir/nginx.server.conf ] && site_flavour_nginx_conf="$site_flavour_dir/nginx.no-php.conf"
+    site_flavour_nginx_conf="${site_flavour_nginx_conf:-$ngineerx_flavour_dir/default/nginx.no-php.conf}"
 
-  chat 2 "Creating directory structure."
-  chat 3 "mkdir -p $site_root/www"
-  mkdir -p $site_root/www
-  chat 3 "mkdir -p $site_root/log"
-  mkdir -p $site_root/log
-  chat 3 "mkdir -p $site_root/tmp"
-  mkdir -p $site_root/tmp
-  chat 3 "mkdir -p $site_root/certs"
-  mkdir -p $site_root/certs
-  chat 3 "mkdir -p $site_root/sessions"
-  mkdir -p $site_root/sessions
+    chat 0 "Creating directory structure."
+    chat 3 "mkdir -p $site_root/www"
+    mkdir -p $site_root/www
+    chat 3 "mkdir -p $site_root/log"
+    mkdir -p $site_root/log
+    chat 3 "mkdir -p $site_root/tmp"
+    mkdir -p $site_root/tmp
+    chat 3 "mkdir -p $site_root/certs"
+    mkdir -p $site_root/certs
+    chat 3 "mkdir -p $site_root/sessions"
+    mkdir -p $site_root/sessions
 
-  # Create user and group $php_user and add $nginx_user to the group $php_user
-  chat 2 "Creating user and adding user $ngineerx_nginx_user to group $ngineerx_php_user"
-  chat 3 "pw user add $ngineerx_php_user -s /sbin/nologin"
-  pw user add $ngineerx_php_user -s /sbin/nologin
-  chat 3 "pw group mod $ngineerx_php_user -m $ngineerx_nginx_user"
-  pw group mod $ngineerx_php_user -m $ngineerx_nginx_user
+    # Create user and group $php_user and add $nginx_user to the group $php_user
+    chat 2 "Creating user and adding user $ngineerx_nginx_user to group $ngineerx_php_user"
+    chat 3 "pw user add $ngineerx_php_user -s /sbin/nologin"
+    pw user add $ngineerx_php_user -s /sbin/nologin
+    chat 3 "pw group mod $ngineerx_php_user -m $ngineerx_nginx_user"
+    pw group mod $ngineerx_php_user -m $ngineerx_nginx_user
 
-  if [ "$no_php" != true ]; then
-    [ -f $site_flavour_dir/nginx.conf ] && site_flavour_nginx_conf="$site_flavour_dir/nginx.conf"
-    site_flavour_nginx_conf="${site_flavour_nginx_conf:-$ngineerx_flavour_dir/default/nginx.conf}"
+    if [ "$no_php" != true ]; then
+      [ -f $site_flavour_dir/nginx.conf ] && site_flavour_nginx_conf="$site_flavour_dir/nginx.conf"
+      site_flavour_nginx_conf="${site_flavour_nginx_conf:-$ngineerx_flavour_dir/default/nginx.conf}"
 
-    ## Check if php config file exist in flavour directory. Otherwise take it from default flavour
-    [ -f $site_flavour_dir/php-fpm.pool.conf ] && site_flavour_phpfpm_pool_conf="$site_flavour_dir/php-fpm.pool.conf"
-    site_flavour_phpfpm_pool_conf="${site_flavour_phpfpm_pool_conf:-$ngineerx_flavour_dir/default/php-fpm.pool.conf}"
+      ## Check if php config file exist in flavour directory. Otherwise take it from default flavour
+      [ -f $site_flavour_dir/php-fpm.pool.conf ] && site_flavour_phpfpm_pool_conf="$site_flavour_dir/php-fpm.pool.conf"
+      site_flavour_phpfpm_pool_conf="${site_flavour_phpfpm_pool_conf:-$ngineerx_flavour_dir/default/php-fpm.pool.conf}"
 
-    # Determine the next usable port number for the php-fpm pool
-    chat 2 "Getting port for php-fpm-pool"
-    chat 3 "ngineerx_php_pool_port=`cat $ngineerx_php_ports_db`"
-    ngineerx_php_pool_port=`cat $ngineerx_php_ports_db`
-    chat 3 "ngineerx_php_pool_port: $ngineerx_php_pool_port"
+      # Determine the next usable port number for the php-fpm pool
+      chat 2 "Getting port for php-fpm-pool"
+      chat 3 "ngineerx_php_pool_port=`cat $ngineerx_php_ports_db`"
+      ngineerx_php_pool_port=`cat $ngineerx_php_ports_db`
+      chat 3 "ngineerx_php_pool_port: $ngineerx_php_pool_port"
 
-    chat 2 "Creating php config files"
-    chat 3 "cp $site_flavour_phpfpm_pool_conf $phpfpm_conf_d/$site_domain.conf"
-    cp $site_flavour_phpfpm_pool_conf $phpfpm_conf_d/$site_domain.conf
-    chat 3 "write_config $phpfpm_conf_d/$site_domain.conf"
-    write_config $phpfpm_conf_d/$site_domain.conf
+      chat 0 "Creating php config files"
+      chat 3 "cp $site_flavour_phpfpm_pool_conf $phpfpm_conf_d/$site_domain.conf"
+      cp $site_flavour_phpfpm_pool_conf $phpfpm_conf_d/$site_domain.conf
+      chat 3 "write_config $phpfpm_conf_d/$site_domain.conf"
+      write_config $phpfpm_conf_d/$site_domain.conf
 
-    # Increment php-fpm pool port and store in file
-    echo "$(expr "$ngineerx_php_pool_port" + 1)" > $ngineerx_php_ports_db
+      # Increment php-fpm pool port and store in file
+      echo "$(expr "$ngineerx_php_pool_port" + 1)" > $ngineerx_php_ports_db
+    fi
+
+    chat 0 "Creating nginx config files"
+    chat 3 "cp $site_flavour_nginx_conf $nginx_sites_avaliable/$site_domain.conf"
+    cp $site_flavour_nginx_conf $nginx_sites_avaliable/$site_domain.conf
+    chat 3 "write_config $nginx_sites_avaliable/$site_domain.conf"
+    write_config $nginx_sites_avaliable/$site_domain.conf
+
+    # Copy sample files if they exist in flavour
+    if [ -d "$site_flavour_dir/www" ]; then
+      chat 0 "Copying sample files"
+      chat 3 "cp -r $site_flavour_dir/www/* $site_webroot"
+      cp -r $site_flavour_dir/www/* $site_webroot
+    fi
+
+    # Link nginx config file from sites-avaliable to sites-enabled
+    chat 0 "Enabling site $site_domain"
+    chat 3 "ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf"
+    ln -sf "$nginx_sites_avaliable/$site_domain.conf" "$nginx_sites_enabled/$site_domain.conf"
+
+    # Add config files to newsyslog config
+    chat 0 "Enabling logrotation"
+    chat 3 "echo \"$site_root/log/nginx.access.log 644 12 * \$W0D23 J $nginx_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
+    echo "$site_root/log/nginx.access.log 644 12 * \$W0D23 J $nginx_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
+    chat 3 "echo \"$site_root/log/nginx.error.log 644 12 * \$W0D23 J $nginx_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
+    echo "$site_root/log/nginx.error.log 644 12 * \$W0D23 J $nginx_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
+
+    if [ "$no_php" != true ]; then
+      chat 3 "echo \"$site_root/log/phpfpm.slow.log 644 12 * \$W0D23 J $phpfpm_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
+      echo "$site_root/log/phpfpm.slow.log 644 12 * \$W0D23 J $phpfpm_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
+      chat 3 "echo \"$site_root/log/phpfpm.error.log 644 12 * \$W0D23 J $phpfpm_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
+      echo "$site_root/log/phpfpm.error.log 644 12 * \$W0D23 J $phpfpm_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
+    fi
   fi
 
-  chat 2 "Creating nginx config files"
-  chat 3 "cp $site_flavour_nginx_conf $nginx_sites_avaliable/$site_domain.conf"
-  cp $site_flavour_nginx_conf $nginx_sites_avaliable/$site_domain.conf
-  chat 3 "write_config $nginx_sites_avaliable/$site_domain.conf"
-  write_config $nginx_sites_avaliable/$site_domain.conf
-
-  # Copy sample files if they exist in flavour
-  if [ -d "$site_flavour_dir/www" ]; then
-    chat 2 "Copying sample files"
-    chat 3 "cp -r $site_flavour_dir/www/* $site_webroot"
-    cp -r $site_flavour_dir/www/* $site_webroot
-  fi
+  # Create the certs
+  chat 3 "create_cert $domains"
+  create_cert $domains
 
   # Set strong permissions to files and directories
-  chat 2 "Setting strong permissions to files and directories."
+  chat 0 "Setting strong permissions to files and directories."
   chat 3 "chown -R $ngineerx_php_user:$ngineerx_php_user $site_root"
   chown -R $ngineerx_php_user:$ngineerx_php_user $site_root
   chat 3 "chmod 750 $site_root"
@@ -472,33 +496,9 @@ if [ "$cert_only" != true ]; then
   chat 3 "chmod 400 $site_root/certs/*"
   chmod 400 $site_root/certs/*
 
-  # Link nginx config file from sites-avaliable to sites-enabled
-  chat 2 "Enabling site $site_domain"
-  chat 3 "ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf"
-  ln -sf "$nginx_sites_avaliable/$site_domain.conf" "$nginx_sites_enabled/$site_domain.conf"
-
-  # Add config files to newsyslog config
-  chat 2 "Enabling logrotation"
-  chat 3 "echo \"$site_root/log/nginx.access.log 644 12 * \$W0D23 J $nginx_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
-  echo "$site_root/log/nginx.access.log 644 12 * \$W0D23 J $nginx_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
-  chat 3 "echo \"$site_root/log/nginx.error.log 644 12 * \$W0D23 J $nginx_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
-  echo "$site_root/log/nginx.error.log 644 12 * \$W0D23 J $nginx_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
-
-  if [ "$no_php" != true ]; then
-    chat 3 "echo \"$site_root/log/phpfpm.slow.log 644 12 * \$W0D23 J $phpfpm_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
-    echo "$site_root/log/phpfpm.slow.log 644 12 * \$W0D23 J $phpfpm_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
-    chat 3 "echo \"$site_root/log/phpfpm.error.log 644 12 * \$W0D23 J $phpfpm_pid_file 30\" >> $newsyslog_conf_d/$site_domain.conf"
-    echo "$site_root/log/phpfpm.error.log 644 12 * \$W0D23 J $phpfpm_pid_file 30" >> $newsyslog_conf_d/$site_domain.conf
-  fi
-fi
-
-# Create the certs
-chat 3 "create_cert $domains"
-create_cert $domains
-
-# Restart stack
-start_stop_stack_by_script restart
-;;
+  # Restart stack
+  start_stop_stack_by_script restart
+  ;;
 ######################## ngineerx DELETE ########################
 delete)
 shift; while getopts :d: arg; do case ${arg} in
@@ -516,29 +516,30 @@ init
 site_root="$ngineerx_webroot/$site_domain"
 
 # Delete config files
-chat 2 "Deleting nginx config for $site_domain"
+chat 0 "Deleting nginx config for $site_domain"
 chat 3 "rm \"$nginx_sites_enabled/$site_domain.conf\""
 rm "$nginx_sites_enabled/$site_domain.conf"
 chat 3 "rm \"$nginx_sites_avaliable/$site_domain.conf\""
 rm "$nginx_sites_avaliable/$site_domain.conf"
 
-chat 2 "Deleting php-fpm config for $site_domain"
+chat 0 "Deleting php-fpm config for $site_domain"
 chat 3 "rm \"$phpfpm_conf_d/$site_domain.conf\""
 rm "$phpfpm_conf_d/$site_domain.conf"
 
-chat 2 "Deleting newsyslog config for $site_domain"
+chat 0 "Deleting newsyslog config for $site_domain"
 chat 3 "rm \"$newsyslog_conf_d/$site_domain.conf\""
 rm "$newsyslog_conf_d/$site_domain.conf"
 
-chat 2 "Deleting $site_domain from $dehydrated_domains_txt."
+chat 0 "Deleting $site_domain from $dehydrated_domains_txt."
 chat 3 "sed -i \"\" \"/\"${site_domain}\"/d\" ${dehydrated_domains_txt}"
 sed -i "" "/"${site_domain}"/d" ${dehydrated_domains_txt}
-chat 2 "Moving certs to archive."
+
+chat 0 "Moving certs to archive."
 chat 3 "$dehydrated ${dehydrated_args} --gc"
 $dehydrated ${dehydrated_args} -gc
 
 # Delete content from webroot
-echo "+++ Deleting files for $site_domain"
+chat 0 "Deleting files for $site_domain"
 rm -rI $site_root
 
 # Restart stack
@@ -559,7 +560,7 @@ init
 [ ! -d $site_domain ] || chat 1 ${ngineerx_usage_enable}
 
 # Link nginx config file from sites-avaliable to sites-enabled
-chat 2 "Enabeling $site_domain"
+chat 0 "Enabling $site_domain"
 chat 3 "ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf"
 ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf
 
@@ -581,7 +582,7 @@ init
 [ ! -d $site_domain ] || chat 1 ${ngineerx_usage_disable}
 
 # Delete link  to nginx config file from sites-enabled
-chat 2 "Disabeling $site_domain"
+chat 0 "Disabling $site_domain"
 chat 3 "rm $nginx_sites_enabled/$site_domain.conf"
 rm $nginx_sites_enabled/$site_domain.conf
 
@@ -593,7 +594,7 @@ cert-renew)
 checkPID
 init
 
-chat 2 "Renewing certificates."
+chat 0 "Renewing certificates."
 chat 3 "$dehydrated ${dehydrated_args} -c"
 $dehydrated ${dehydrated_args} -c
 
@@ -644,9 +645,9 @@ if [ "$(ls -A $nginx_sites_avaliable)" ]; then
     list_data="$list_data$list_displayname $list_status $list_pool "
   done
 else
-  echo ""
-  echo "No sites defined yet."
-  echo "Run $ngineerx create -d \"DOMAINS\" to create one."
+  chat 0 ""
+  chat 0 "No sites defined yet."
+  chat 0 "Run $ngineerx create -d \"DOMAINS\" to create one."
 fi
 
 # Print list
