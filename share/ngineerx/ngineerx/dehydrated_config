@@ -1,3 +1,4 @@
 DOMAINS_TXT="@@dehydrated_domains_txt@@"
 HOOK="@@dehydrated_hook_file@@"
 WELLKNOWN="@@dehydrated_webroot@@"
+CA="@@dehydrated_ca@@"

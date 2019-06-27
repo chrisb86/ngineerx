@@ -56,6 +56,9 @@
 ## Path to ngineerx specific acme challenges for dehydrated
 #DEHYDRATED_WEBROOT="$dehydrated_conf_dir/.acme-challenges"
 
+## Which ACME server to use with dehydrated
+#DEHYDRATED_CA="https://acme-v02.api.letsencrypt.org/directory"
+
 ## ngineerx specifig default arguments for dehydrated
 #DEHYDRATED_ARGS="-f $dehydrated_conf_file"
 

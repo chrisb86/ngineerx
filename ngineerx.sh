@@ -118,6 +118,7 @@ init () {
   dehydrated_hook_file="${dehydrated_hook_file:-$ngineerx_conf_dir/dehydrated_hook.sh}"
   dehydrated_domains_txt="${DEHYDRATED_DOMAINS_TXT:-$ngineerx_conf_dir/dehydrated_domains.txt}"
   dehydrated_webroot="${DEHYDRATED_WEBROOT:-$ngineerx_conf_dir/.acme-challenges}"
+  dehydrated_ca="${DEHYDRATED_CA:-https://acme-v02.api.letsencrypt.org/directory}"
   dehydrated_args="${DEHYDRATED_ARGS:--f $dehydrated_conf_file}"
   dehydrated_args_install="${DEHYDRATED_ARGS:---register --accept-terms}"
   newsyslog_conf_d="${NEWSYSLOG_CONF_D:-$basedir/etc/newsyslog.conf.d}"
@@ -153,6 +154,7 @@ init () {
   chat 3 "dehydrated_hook_file: $dehydrated_hook_file"
   chat 3 "dehydrated_domains_txt: $dehydrated_domains_txt"
   chat 3 "dehydrated_webroot: $dehydrated_webroot"
+  chat 3 "dehydrated_ca: $dehydrated_ca"
   chat 3 "dehydrated_args: $dehydrated_args"
   chat 3 "dehydrated_args_install: $dehydrated_args_install"
   chat 3 "newsyslog_conf_d: $newsyslog_conf_d"
@@ -169,7 +171,6 @@ init () {
   chat 3 "phpfpm_conf_d: $phpfpm_conf_d"
   chat 3 "phpfpm_pid_file: $phpfpm_pid_file"
   chat 3 "openssl: $openssl"
-
 }
 
 # Check if script is already running
@@ -187,7 +188,7 @@ checkPID () {
   chat 3 "ngineerx_pid: $ngineerx_pid"
   chat 3 "ngineerx_stored_pid: $ngineerx_stored_pid"
   chat 3 "ngineerx_pid_is_running: $ngineerx_pid_is_running"
-  
+
   if [ "$ngineerx_pid_is_running" ]; then
     # If stored PID is already in use, skip execution
     chat 1 "Skipping because $ngineerx is running (PID: $ngineerx_stored_pid)."
@@ -232,7 +233,7 @@ write_config() {
   chat 2 "Writing config file $conf_file"
 
   # Define the replacement patterns
-  replacements="@@nginx_dhkeysize@@=$nginx_dhkeysize @@basedir@@=$basedir @@dehydrated_webroot@@=$dehydrated_webroot @@dehydrated_domains_txt@@=$dehydrated_domains_txt @@dehydrated_hook_file@@=$dehydrated_hook_file @@ngineerx_conf_dir@@=$ngineerx_conf_dir @@ngineerx_webroot@@=$ngineerx_webroot @@nginx_rc@@=$nginx_rc @@nginx_conf_dir@@=$nginx_conf_dir @@nginx_includes_dir@@=$nginx_includes_dir @@nginx_user@@=$ngineerx_nginx_user @@nginx_pid_file@@=$nginx_pid_file @@php_pool_port@@=$ngineerx_php_pool_port @@phpfpm_user@@=$ngineerx_php_user @@phpfpm_rc@@=$phpfpm_rc @@phpfpm_conf_dir@@=$phpfpm_conf_d @@phpfpm_pid_file@@=$phpfpm_pid_file @@ngineerx_host_ip@@=$ngineerx_host_ip @@site_domain@@=$site_domain @@site_root@@=$site_root @@site_webroot@@=$site_webroot @@nginx_dh_file@@=$nginx_dh_file"
+  replacements="@@nginx_dhkeysize@@=$nginx_dhkeysize @@basedir@@=$basedir @@dehydrated_webroot@@=$dehydrated_webroot @@dehydrated_domains_txt@@=$dehydrated_domains_txt @@dehydrated_hook_file@@=$dehydrated_hook_file @@dehydrated_ca@@=$dehydrated_ca @@ngineerx_conf_dir@@=$ngineerx_conf_dir @@ngineerx_webroot@@=$ngineerx_webroot @@nginx_rc@@=$nginx_rc @@nginx_conf_dir@@=$nginx_conf_dir @@nginx_includes_dir@@=$nginx_includes_dir @@nginx_user@@=$ngineerx_nginx_user @@nginx_pid_file@@=$nginx_pid_file @@php_pool_port@@=$ngineerx_php_pool_port @@phpfpm_user@@=$ngineerx_php_user @@phpfpm_rc@@=$phpfpm_rc @@phpfpm_conf_dir@@=$phpfpm_conf_d @@phpfpm_pid_file@@=$phpfpm_pid_file @@ngineerx_host_ip@@=$ngineerx_host_ip @@site_domain@@=$site_domain @@site_root@@=$site_root @@site_webroot@@=$site_webroot @@nginx_dh_file@@=$nginx_dh_file"
 
   chat 3 "replacements: $replacements"
 
@@ -308,13 +309,21 @@ case "$1" in
   done
 
   ## Copy config files to $basedir and delete tmp files
-  chat 3 "cp -rf $ngineerx_temp_dir/* $basedir"
-  cp -rf $ngineerx_temp_dir/* $basedir
+  chat 3 "cp -rf $ngineerx_temp_dir/ngineerx/* $ngineerx_conf_dir/"
+  cp -rf $ngineerx_temp_dir/ngineerx/* $ngineerx_conf_dir/
+
+  chat 3 "cp -rf $ngineerx_temp_dir/nginx/* $nginx_conf_dir/"
+  cp -rf $ngineerx_temp_dir/nginx/* $nginx_conf_dir/
+
+  chat 3 "cp -rf $ngineerx_temp_dir/php* $basedir/etc/"
+  cp -rf $ngineerx_temp_dir/php* $basedir/etc/
+
   chat 3 "rm -r $ngineerx_temp_dir"
   rm -r $ngineerx_temp_dir
 
   chat 3 "cp -r $basedir/share/ngineerx/ngineerx/flavours $ngineerx_conf_dir"
   cp -r $basedir/share/ngineerx/ngineerx/flavours $ngineerx_conf_dir
+
   chat 3 "chmod +x $dehydrated_hook_file"
   chmod +x $dehydrated_hook_file
 
