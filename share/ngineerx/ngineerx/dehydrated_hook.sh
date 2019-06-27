@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 
 deploy_challenge() {
     local DOMAIN="${1}" TOKEN_FILENAME="${2}" TOKEN_VALUE="${3}"
@@ -138,6 +138,10 @@ unchanged_cert() {
     #   The path of the file containing the full certificate chain.
     # - CHAINFILE
     #   The path of the file containing the intermediate certificate(s).
+
+    echo "Deploying certificates for ${DOMAIN}".
+    cp -f ${KEYFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
+    cp -f ${FULLCHAINFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
 }
 
 invalid_challenge() {

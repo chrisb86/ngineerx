@@ -135,6 +135,9 @@ init () {
   phpfpm_conf_d="${PHPFPM_CONF_D:-$basedir/etc/php-fpm.d}"
   phpfpm_pid_file="${PHPFPM_PID_FILE:-/var/run/php-fpm.pid}"
   openssl="${OPENSSL:-/usr/bin/openssl}"
+  site_flavour="${SITE_FLAVOUR:-default}"
+  cert_only="${CERT_ONLY:-false}"
+  no_php="${NO_PHP:-false}"
 
   ## Check if ngineerx is installed properly by checking if default flavour exists.
   [ "$COMMAND_INSTALL" != true ] && [ ! -d "$ngineerx_flavour_dir/default" ] && chat 1 "It seems that ngineerx is not installed properly. Please run $ngineerx install."
@@ -363,12 +366,12 @@ case "$1" in
 
   ######################## ngineerx CREATE ########################
   create)
-    shift; while getopts :d:u:cpf: arg; do case ${arg} in
+  shift; while getopts :d:u:cpf: arg; do case ${arg} in
     d) domains=${OPTARG};;
-    u) php_user=${OPTARG};;
-    c) cert_only=true;;
-    p) no_php=true;;
-    f) site_flavour=${OPTARG};;
+    u) NGINEERX_PHP_USER=${OPTARG};;
+    c) CERT_ONLY=true;;
+    p) NO_PHP=true;;
+    f) SITE_FLAVOUR=${OPTARG};;
     ?) chat 1 ${ngineerx_usage_create};;
     :) chat 1 ${ngineerx_usage_create};;
   esac; done; shift $(( ${OPTIND} - 1 ))
@@ -394,7 +397,7 @@ case "$1" in
     chat 3 "site_webroot: $site_webroot"
 
     ## if no flavour is specified take default
-    site_flavour="${site_flavour:-default}"
+
     chat 2 "Flavour $site_flavour will be used for site creation."
     chat 3 "site_flavour: $site_flavour"
 
@@ -499,163 +502,163 @@ case "$1" in
   # Restart stack
   start_stop_stack_by_script restart
   ;;
-######################## ngineerx DELETE ########################
-delete)
-shift; while getopts :d: arg; do case ${arg} in
-d) site_domain=${OPTARG};;
-?) exerr ${ngineerx_usage_delete};;
-:) exerr ${ngineerx_usage_delete};;
-esac; done; shift $(( ${OPTIND} - 1 ))
+  ######################## ngineerx DELETE ########################
+  delete)
+  shift; while getopts :d: arg; do case ${arg} in
+    d) site_domain=${OPTARG};;
+    ?) exerr ${ngineerx_usage_delete};;
+    :) exerr ${ngineerx_usage_delete};;
+  esac; done; shift $(( ${OPTIND} - 1 ))
 
-checkPID
-init
+  checkPID
+  init
 
-# we need at least a domain name
-[ ! -d $site_domain ] || chat 1 ${ngineerx_usage_delete}
+  # we need at least a domain name
+  [ ! -d $site_domain ] || chat 1 ${ngineerx_usage_delete}
 
-site_root="$ngineerx_webroot/$site_domain"
+  site_root="$ngineerx_webroot/$site_domain"
 
-# Delete config files
-chat 0 "Deleting nginx config for $site_domain"
-chat 3 "rm \"$nginx_sites_enabled/$site_domain.conf\""
-rm "$nginx_sites_enabled/$site_domain.conf"
-chat 3 "rm \"$nginx_sites_avaliable/$site_domain.conf\""
-rm "$nginx_sites_avaliable/$site_domain.conf"
+  # Delete config files
+  chat 0 "Deleting nginx config for $site_domain"
+  chat 3 "rm \"$nginx_sites_enabled/$site_domain.conf\""
+  rm "$nginx_sites_enabled/$site_domain.conf"
+  chat 3 "rm \"$nginx_sites_avaliable/$site_domain.conf\""
+  rm "$nginx_sites_avaliable/$site_domain.conf"
 
-chat 0 "Deleting php-fpm config for $site_domain"
-chat 3 "rm \"$phpfpm_conf_d/$site_domain.conf\""
-rm "$phpfpm_conf_d/$site_domain.conf"
+  chat 0 "Deleting php-fpm config for $site_domain"
+  chat 3 "rm \"$phpfpm_conf_d/$site_domain.conf\""
+  rm "$phpfpm_conf_d/$site_domain.conf"
 
-chat 0 "Deleting newsyslog config for $site_domain"
-chat 3 "rm \"$newsyslog_conf_d/$site_domain.conf\""
-rm "$newsyslog_conf_d/$site_domain.conf"
+  chat 0 "Deleting newsyslog config for $site_domain"
+  chat 3 "rm \"$newsyslog_conf_d/$site_domain.conf\""
+  rm "$newsyslog_conf_d/$site_domain.conf"
 
-chat 0 "Deleting $site_domain from $dehydrated_domains_txt."
-chat 3 "sed -i \"\" \"/\"${site_domain}\"/d\" ${dehydrated_domains_txt}"
-sed -i "" "/"${site_domain}"/d" ${dehydrated_domains_txt}
+  chat 0 "Deleting $site_domain from $dehydrated_domains_txt."
+  chat 3 "sed -i \"\" \"/\"${site_domain}\"/d\" ${dehydrated_domains_txt}"
+  sed -i "" "/"${site_domain}"/d" ${dehydrated_domains_txt}
 
-chat 0 "Moving certs to archive."
-chat 3 "$dehydrated ${dehydrated_args} --gc"
-$dehydrated ${dehydrated_args} -gc
+  chat 0 "Moving certs to archive."
+  chat 3 "$dehydrated ${dehydrated_args} --gc"
+  $dehydrated ${dehydrated_args} -gc
 
-# Delete content from webroot
-chat 0 "Deleting files for $site_domain"
-rm -rI $site_root
+  # Delete content from webroot
+  chat 0 "Deleting files for $site_domain"
+  rm -rI $site_root
 
-# Restart stack
-start_stop_stack_by_script restart
-;;
-######################## ngineerx ENABLE ########################
-enable)
-shift; while getopts :d: arg; do case ${arg} in
-d) site_domain=${OPTARG};;
-?) exerr ${ngineerx_usage_enable};;
-:) exerr ${ngineerx_usage_enable};;
-esac; done; shift $(( ${OPTIND} - 1 ))
+  # Restart stack
+  start_stop_stack_by_script restart
+  ;;
+  ######################## ngineerx ENABLE ########################
+  enable)
+  shift; while getopts :d: arg; do case ${arg} in
+    d) site_domain=${OPTARG};;
+    ?) exerr ${ngineerx_usage_enable};;
+    :) exerr ${ngineerx_usage_enable};;
+  esac; done; shift $(( ${OPTIND} - 1 ))
 
-checkPID
-init
+  checkPID
+  init
 
-# we need at least a domain name
-[ ! -d $site_domain ] || chat 1 ${ngineerx_usage_enable}
+  # we need at least a domain name
+  [ ! -d $site_domain ] || chat 1 ${ngineerx_usage_enable}
 
-# Link nginx config file from sites-avaliable to sites-enabled
-chat 0 "Enabling $site_domain"
-chat 3 "ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf"
-ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf
+  # Link nginx config file from sites-avaliable to sites-enabled
+  chat 0 "Enabling $site_domain"
+  chat 3 "ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf"
+  ln -sf $nginx_sites_avaliable/$site_domain.conf $nginx_sites_enabled/$site_domain.conf
 
-# Restart stack
-start_stop_stack_by_script restart
-;;
-######################## ngineerx DISABLE ########################
-disable)
-shift; while getopts :d: arg; do case ${arg} in
-d) site_domain=${OPTARG};;
-?) exerr ${ngineerx_usage_disable};;
-:) exerr ${ngineerx_usage_disable};;
-esac; done; shift $(( ${OPTIND} - 1 ))
+  # Restart stack
+  start_stop_stack_by_script restart
+  ;;
+  ######################## ngineerx DISABLE ########################
+  disable)
+  shift; while getopts :d: arg; do case ${arg} in
+    d) site_domain=${OPTARG};;
+    ?) exerr ${ngineerx_usage_disable};;
+    :) exerr ${ngineerx_usage_disable};;
+  esac; done; shift $(( ${OPTIND} - 1 ))
 
-checkPID
-init
+  checkPID
+  init
 
-# we need at least a domain name
-[ ! -d $site_domain ] || chat 1 ${ngineerx_usage_disable}
+  # we need at least a domain name
+  [ ! -d $site_domain ] || chat 1 ${ngineerx_usage_disable}
 
-# Delete link  to nginx config file from sites-enabled
-chat 0 "Disabling $site_domain"
-chat 3 "rm $nginx_sites_enabled/$site_domain.conf"
-rm $nginx_sites_enabled/$site_domain.conf
+  # Delete link  to nginx config file from sites-enabled
+  chat 0 "Disabling $site_domain"
+  chat 3 "rm $nginx_sites_enabled/$site_domain.conf"
+  rm $nginx_sites_enabled/$site_domain.conf
 
-# Restart stack
-start_stop_stack_by_script restart
-;;
-######################## ngineerx CERT-RENEW ########################
-cert-renew)
-checkPID
-init
+  # Restart stack
+  start_stop_stack_by_script restart
+  ;;
+  ######################## ngineerx CERT-RENEW ########################
+  cert-renew)
+  checkPID
+  init
 
-chat 0 "Renewing certificates."
-chat 3 "$dehydrated ${dehydrated_args} -c"
-$dehydrated ${dehydrated_args} -c
+  chat 0 "Renewing certificates."
+  chat 3 "$dehydrated ${dehydrated_args} -c"
+  $dehydrated ${dehydrated_args} -c
 
-start_stop_stack_by_script restart
-;;
-######################## ngineerx LIST ########################
-list)
-init
+  start_stop_stack_by_script restart
+  ;;
+  ######################## ngineerx LIST ########################
+  list)
+  init
 
-# get pids for nginx and php-fpm
-list_nginx_pid=`touch "$ngineerx_pid_file" && cat "$ngineerx_pid_file"`
-list_phpfpm_pid=`touch "$phpfpm_pid_file" && cat "$phpfpm_pid_file"`
+  # get pids for nginx and php-fpm
+  list_nginx_pid=`touch "$ngineerx_pid_file" && cat "$ngineerx_pid_file"`
+  list_phpfpm_pid=`touch "$phpfpm_pid_file" && cat "$phpfpm_pid_file"`
 
-[ -z $list_nginx_pid ] && list_nginx_pid="not running"
-[ -z $list_phpfpm_pid ] && list_phpfpm_pid="not running"
+  [ -z $list_nginx_pid ] && list_nginx_pid="not running"
+  [ -z $list_phpfpm_pid ] && list_phpfpm_pid="not running"
 
-if [ "$(ls -A $nginx_sites_avaliable)" ]; then
-  # rest of the logic
-  # set formating options
-  list_header=" %-35s %8s %4s\n"
-  list_format=" %-35s %8s %4s\n"
-  list_data=""
-  list_divider="------------------------------------ -------- ----"
+  if [ "$(ls -A $nginx_sites_avaliable)" ]; then
+    # rest of the logic
+    # set formating options
+    list_header=" %-35s %8s %4s\n"
+    list_format=" %-35s %8s %4s\n"
+    list_data=""
+    list_divider="------------------------------------ -------- ----"
 
-  printf "$list_header" "SITENAME" "STATUS" "POOL"
+    printf "$list_header" "SITENAME" "STATUS" "POOL"
 
+    echo $list_divider
+
+    for list_file in $nginx_sites_avaliable/*; do
+
+      unset list_phpfpm_pool_port
+
+      # format filename
+      list_filename=$(basename "$list_file")
+      list_displayname=$(basename "$list_file" .conf)
+
+      # if config is linked to sites-enabled set status to enabled
+      list_status=`[ -f $nginx_sites_enabled/$list_filename ] && echo "ENABLED" || echo "DISABLED"`
+
+      # grep php-fpm port from config file if it exists
+      if [ -f $phpfpm_conf_d/$list_filename ] ; then
+        list_phpfpm_pool_port=`grep "listen " $phpfpm_conf_d/$list_filename | cut -d ":" -f2-`;
+      fi
+
+      list_pool="${list_phpfpm_pool_port:-N/A}"
+
+      # populate data for printf
+      list_data="$list_data$list_displayname $list_status $list_pool "
+    done
+  else
+    chat 0 ""
+    chat 0 "No sites defined yet."
+    chat 0 "Run $ngineerx create -d \"DOMAINS\" to create one."
+  fi
+
+  # Print list
+  printf "$list_format" $list_data
   echo $list_divider
-
-  for list_file in $nginx_sites_avaliable/*; do
-
-    unset list_phpfpm_pool_port
-
-    # format filename
-    list_filename=$(basename "$list_file")
-    list_displayname=$(basename "$list_file" .conf)
-
-    # if config is linked to sites-enabled set status to enabled
-    list_status=`[ -f $nginx_sites_enabled/$list_filename ] && echo "ENABLED" || echo "DISABLED"`
-
-    # grep php-fpm port from config file if it exists
-    if [ -f $phpfpm_conf_d/$list_filename ] ; then
-      list_phpfpm_pool_port=`grep "listen " $phpfpm_conf_d/$list_filename | cut -d ":" -f2-`;
-    fi
-
-    list_pool="${list_phpfpm_pool_port:-N/A}"
-
-    # populate data for printf
-    list_data="$list_data$list_displayname $list_status $list_pool "
-  done
-else
-  chat 0 ""
-  chat 0 "No sites defined yet."
-  chat 0 "Run $ngineerx create -d \"DOMAINS\" to create one."
-fi
-
-# Print list
-printf "$list_format" $list_data
-echo $list_divider
-echo "ngineerx Status: nginx PID=$list_nginx_pid | php-fpm PID=$list_phpfpm_pid"
-;;
-*)
-help 1
-;;
+  echo "ngineerx Status: nginx PID=$list_nginx_pid | php-fpm PID=$list_phpfpm_pid"
+  ;;
+  *)
+  help 1
+  ;;
 esac
