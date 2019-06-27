@@ -184,9 +184,9 @@ checkPID () {
 	# Check if stored PID is in use
 	ngineerx_pid_is_running=`ps aux | awk '{print $2}' | grep $ngineerx_stored_pid`
 
-  chat 3 "rmbackup_pid: $ngineerx_pid"
-  chat 3 "rmbackup_stored_pid: $ngineerx_stored_pid"
-  chat 3 "rmbackup_pid_is_running: $ngineerx_pid_is_running"
+  chat 3 "ngineerx_pid: $ngineerx_pid"
+  chat 3 "ngineerx_stored_pid: $ngineerx_stored_pid"
+  chat 3 "ngineerx_pid_is_running: $ngineerx_pid_is_running"
 
 	if [ "$ngineerx_pid_is_running" ]; then
 		# If stored PID is already in use, skip execution
@@ -255,7 +255,7 @@ write_config() {
 }
 
 case "$1" in
-  ######################## rmbackup.sh HELP ########################
+  ######################## ngineerx.sh HELP ########################
   help)
   help 0
   ;;
@@ -280,6 +280,8 @@ case "$1" in
     mkdir -p $ngineerx_webroot
     chat 3 "mkdir -p  $phpfpm_conf_d"
     mkdir -p  $phpfpm_conf_d
+    chat 3 "rm -I $phpfpm_conf_d/*"
+    rm -rf $phpfpm_conf_d/*
     chat 3 "mkdir -p $dehydrated_webroot"
     mkdir -p $dehydrated_webroot
 
@@ -309,7 +311,7 @@ case "$1" in
     chat 3 "cp -rf $ngineerx_temp_dir/* $basedir"
     cp -rf $ngineerx_temp_dir/* $basedir
     chat 3 "rm -r $ngineerx_temp_dir"
-    #rm -r $ngineerx_temp_dir
+    rm -r $ngineerx_temp_dir
 
     chat 3 "cp -r $basedir/share/ngineerx/ngineerx/flavours $ngineerx_conf_dir"
     cp -r $basedir/share/ngineerx/ngineerx/flavours $ngineerx_conf_dir
