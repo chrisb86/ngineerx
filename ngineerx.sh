@@ -289,14 +289,14 @@ case "$1" in
     mkdir -p $ngineerx_temp_dir
     chat 3 "mkdir -p $ngineerx_temp_dir/ngineerx"
     mkdir -p $ngineerx_temp_dir/ngineerx
-    chat 3 "cp /usr/local/share/ngineerx/ngineerx/dehydrated_config $ngineerx_temp_dir/ngineerx/"
-    cp /usr/local/share/ngineerx/ngineerx/dehydrated_config $ngineerx_temp_dir/ngineerx/
-    chat 3 "cp /usr/local/share/ngineerx/ngineerx/dehydrated_hook.sh $ngineerx_temp_dir/ngineerx/"
-    cp /usr/local/share/ngineerx/ngineerx/dehydrated_hook.sh $ngineerx_temp_dir/ngineerx/
-    chat 3 "cp -r /usr/local/share/ngineerx/nginx $ngineerx_temp_dir/"
-    cp -r /usr/local/share/ngineerx/nginx $ngineerx_temp_dir/
-    chat 3 "cp -r /usr/local/share/ngineerx/php* $ngineerx_temp_dir/"
-    cp -r /usr/local/share/ngineerx/php* $ngineerx_temp_dir/
+    chat 3 "cp $basedir/share/ngineerx/ngineerx/dehydrated_config $ngineerx_temp_dir/ngineerx/"
+    cp $basedir/share/ngineerx/ngineerx/dehydrated_config $ngineerx_temp_dir/ngineerx/
+    chat 3 "cp $basedir/share/ngineerx/ngineerx/dehydrated_hook.sh $ngineerx_temp_dir/ngineerx/"
+    cp $basedir/share/ngineerx/ngineerx/dehydrated_hook.sh $ngineerx_temp_dir/ngineerx/
+    chat 3 "cp -r $basedir/share/ngineerx/nginx $ngineerx_temp_dir/"
+    cp -r $basedir/share/ngineerx/nginx $ngineerx_temp_dir/
+    chat 3 "cp -r $basedir/share/ngineerx/php* $ngineerx_temp_dir/"
+    cp -r $basedir/share/ngineerx/php* $ngineerx_temp_dir/
 
     ## modify all template files for concrete usage scenario
 
@@ -309,10 +309,10 @@ case "$1" in
     chat 3 "cp -rf $ngineerx_temp_dir/* $basedir"
     cp -rf $ngineerx_temp_dir/* $basedir
     chat 3 "rm -r $ngineerx_temp_dir"
-    rm -r $ngineerx_temp_dir
+    #rm -r $ngineerx_temp_dir
 
-    chat 3 "cp -r /usr/local/share/ngineerx/ngineerx/flavours $ngineerx_conf_dir"
-    cp -r /usr/local/share/ngineerx/ngineerx/flavours $ngineerx_conf_dir
+    chat 3 "cp -r $basedir/share/ngineerx/ngineerx/flavours $ngineerx_conf_dir"
+    cp -r $basedir/share/ngineerx/ngineerx/flavours $ngineerx_conf_dir
     chat 3 "chmod +x $dehydrated_hook_file"
     chmod +x $dehydrated_hook_file
 
