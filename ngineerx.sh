@@ -608,11 +608,11 @@ case "$1" in
   init
 
   # get pids for nginx and php-fpm
-  list_nginx_pid=`touch "$ngineerx_pid_file" && cat "$ngineerx_pid_file"`
-  list_phpfpm_pid=`touch "$phpfpm_pid_file" && cat "$phpfpm_pid_file"`
+  nginx_pid=`touch "$nginx_pid_file" && cat "$nginx_pid_file"`
+  phpfpm_pid=`touch "$phpfpm_pid_file" && cat "$phpfpm_pid_file"`
 
-  [ -z $list_nginx_pid ] && list_nginx_pid="not running"
-  [ -z $list_phpfpm_pid ] && list_phpfpm_pid="not running"
+  [ -z $nginx_pid ] && nginx_pid="not running"
+  [ -z $phpfpm_pid ] && phpfpm_pid="not running"
 
   if [ "$(ls -A $nginx_sites_avaliable)" ]; then
     # rest of the logic
@@ -656,7 +656,7 @@ case "$1" in
   # Print list
   printf "$list_format" $list_data
   echo $list_divider
-  echo "ngineerx Status: nginx PID=$list_nginx_pid | php-fpm PID=$list_phpfpm_pid"
+  echo "ngineerx Status: nginx PID=$nginx_pid | php-fpm PID=$phpfpm_pid"
   ;;
   *)
   help 1
