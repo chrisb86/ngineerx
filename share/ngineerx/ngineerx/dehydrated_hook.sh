@@ -139,9 +139,14 @@ unchanged_cert() {
     # - CHAINFILE
     #   The path of the file containing the intermediate certificate(s).
 
-    echo "Deploying certificates for ${DOMAIN}".
-    cp -f ${KEYFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
-    cp -f ${FULLCHAINFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
+    if [ -d "@@ngineerx_webroot@@/${DOMAIN}/certs/" ]; then
+      echo "Deploying certificates for ${DOMAIN}".
+      cp -f ${KEYFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
+      cp -f ${FULLCHAINFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
+    else
+      echo "Your certificate is located at ${FULLCHAINFILE}."
+      echo "Your key is located at ${KEYFILE}."
+    fi
 }
 
 invalid_challenge() {
