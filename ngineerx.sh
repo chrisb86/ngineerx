@@ -234,14 +234,14 @@ case "$1" in
   dependencies="$nginx_rc $phpfpm_rc $openssl $dehydrated"
 
   chat 2 "Checking dependencies"
-  for f in ${dependencies}; do check_dependencies $f; done && chat 2 "Everyting is fine."
+  for f in ${dependencies}; do check_dependencies $f; done && chat 2 "Everything is fine."
 
   chat 0 "Creating directory structure"
   mkdir -p $nginx_conf_dir/sites-avaliable
   mkdir -p $nginx_conf_dir/sites-enabled
   mkdir -p $ngineerx_webroot
   mkdir -p  $phpfpm_conf_d
-  rm -rf $phpfpm_conf_d/*
+  rm -rf $phpfpm_conf_d/www.conf
   mkdir -p $dehydrated_webroot
 
   chat 0 "Creating neccessary config files"
@@ -397,7 +397,7 @@ case "$1" in
   chown -R $ngineerx_php_user:$ngineerx_php_user $site_root
   chmod 750 $site_root
   chmod -R 750 $site_root/*
-  chmod 400 $site_root/certs/*
+  chmod 440 $site_root/certs/*
 
   # Restart stack
   start_stop_stack_by_script restart
