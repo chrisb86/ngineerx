@@ -490,7 +490,7 @@ case "$1" in
   init
 
   chat 0 "Renewing certificates."
-  $dehydrated ${dehydrated_args} -c
+  $dehydrated ${dehydrated_args} --keep-going -c
 
   start_stop_stack_by_script restart
   ;;

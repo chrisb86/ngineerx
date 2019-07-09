@@ -89,14 +89,20 @@ deploy_cert() {
     # cp "${KEYFILE}" "${FULLCHAINFILE}" /etc/nginx/ssl/; chown -R nginx: /etc/nginx/ssl
     # systemctl reload nginx
 
-    if [ -d "@@ngineerx_webroot@@/${DOMAIN}/certs/" ]; then
-      echo "Deploying certificates for ${DOMAIN}".
-      cp -f ${KEYFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
-      cp -f ${FULLCHAINFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
+    if [ -d "@@dehydrated_webroot@@/${DOMAIN}/certs/" ]; then
+      TARGET="@@dehydrated_webroot@@/${DOMAIN}/certs/"
     else
-      echo "Your certificate is located at ${FULLCHAINFILE}."
-      echo "Your key is located at ${KEYFILE}."
+      TARGET="/usr/local/etc/ssl/${DOMAIN}/"
+      if [ ! -d "${TARGET}" ]; then
+        echo "Creating ${TARGET}."
+        mkdir -p ${TARGET}
+      fi
     fi
+
+    echo "Deploying certificates for ${DOMAIN} to ${TARGET}".
+    cp -f ${KEYFILE} ${TARGET}
+    cp -f ${CERTFILE} ${TARGET}
+    cp -f ${FULLCHAINFILE} ${TARGET}
 }
 
 deploy_ocsp() {
@@ -139,14 +145,20 @@ unchanged_cert() {
     # - CHAINFILE
     #   The path of the file containing the intermediate certificate(s).
 
-    if [ -d "@@ngineerx_webroot@@/${DOMAIN}/certs/" ]; then
-      echo "Deploying certificates for ${DOMAIN}".
-      cp -f ${KEYFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
-      cp -f ${FULLCHAINFILE} @@ngineerx_webroot@@/${DOMAIN}/certs/
+    if [ -d "@@dehydrated_webroot@@/${DOMAIN}/certs/" ]; then
+      TARGET="@@dehydrated_webroot@@/${DOMAIN}/certs/"
     else
-      echo "Your certificate is located at ${FULLCHAINFILE}."
-      echo "Your key is located at ${KEYFILE}."
+      TARGET="/usr/local/etc/ssl/${DOMAIN}/"
+      if [ ! -d "${TARGET}" ]; then
+        echo "Creating ${TARGET}."
+        mkdir -p ${TARGET}
+      fi
     fi
+
+    echo "Redeploying files, if neccessary."
+    if [ ! -f "${TARGET}/privkey.pem" ]; then cp -f ${KEYFILE} ${TARGET}; fi
+    if [ ! -f "${TARGET}/cert.pem" ]; then cp -f ${CERTFILE} ${TARGET}; fi
+    if [ ! -f "${TARGET}/fullchain.pem" ]; then  cp -f ${FULLCHAINFILE} ${TARGET}; fi
 }
 
 invalid_challenge() {
