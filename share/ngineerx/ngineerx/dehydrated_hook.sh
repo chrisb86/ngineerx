@@ -89,10 +89,10 @@ deploy_cert() {
     # cp "${KEYFILE}" "${FULLCHAINFILE}" /etc/nginx/ssl/; chown -R nginx: /etc/nginx/ssl
     # systemctl reload nginx
 
-    if [ -d "@@dehydrated_webroot@@/${DOMAIN}/certs/" ]; then
-      TARGET="@@dehydrated_webroot@@/${DOMAIN}/certs/"
-    else
-      TARGET="/usr/local/etc/ssl/${DOMAIN}/"
+    TARGET="@@dehydrated_webroot@@/${DOMAIN}/certs"
+
+    if [ ! -d "${TARGET}" ]; then
+      TARGET="/usr/local/etc/ssl/${DOMAIN}"
       if [ ! -d "${TARGET}" ]; then
         echo "Creating ${TARGET}."
         mkdir -p ${TARGET}
@@ -100,9 +100,9 @@ deploy_cert() {
     fi
 
     echo "Deploying certificates for ${DOMAIN} to ${TARGET}".
-    cp -f ${KEYFILE} ${TARGET}
-    cp -f ${CERTFILE} ${TARGET}
-    cp -f ${FULLCHAINFILE} ${TARGET}
+    cp -f ${KEYFILE} ${TARGET}/
+    cp -f ${CERTFILE} ${TARGET}/
+    cp -f ${FULLCHAINFILE} ${TARGET}/
 }
 
 deploy_ocsp() {
@@ -145,10 +145,10 @@ unchanged_cert() {
     # - CHAINFILE
     #   The path of the file containing the intermediate certificate(s).
 
-    if [ -d "@@dehydrated_webroot@@/${DOMAIN}/certs/" ]; then
-      TARGET="@@dehydrated_webroot@@/${DOMAIN}/certs/"
-    else
-      TARGET="/usr/local/etc/ssl/${DOMAIN}/"
+    TARGET="@@dehydrated_webroot@@/${DOMAIN}/certs"
+
+    if [ ! -d "${TARGET}" ]; then
+      TARGET="/usr/local/etc/ssl/${DOMAIN}"
       if [ ! -d "${TARGET}" ]; then
         echo "Creating ${TARGET}."
         mkdir -p ${TARGET}
