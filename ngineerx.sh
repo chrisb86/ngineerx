@@ -119,6 +119,7 @@ init () {
   ngineerx_temp_dir="${NGINEERX_TEMP_DIR:-/tmp/ngineerx}"
   dehydrated="${DEHYDRATED:-$basedir/bin/dehydrated}"
   dehydrated_conf_file="${DEHYDRATED_CONF_FILE:-$ngineerx_conf_dir/dehydrated_config}"
+	dehydrated_cert_dir="${DEHYDRATED_CERT_DIR:-$ngineerx_conf_dir/certs}"
   dehydrated_hook_file="${dehydrated_hook_file:-$ngineerx_conf_dir/dehydrated_hook.sh}"
   dehydrated_domains_txt="${DEHYDRATED_DOMAINS_TXT:-$ngineerx_conf_dir/dehydrated_domains.txt}"
   dehydrated_webroot="${DEHYDRATED_WEBROOT:-$ngineerx_conf_dir/.acme-challenges}"
@@ -491,6 +492,17 @@ case "$1" in
 
   chat 0 "Renewing certificates."
   $dehydrated ${dehydrated_args} --keep-going -c
+
+	cd $ngineerx_webroot
+	for site in *
+	do
+    site_web_path="$ngineerx_webroot/$site"
+    site_cert_path="$dehydrated_cert_dir/$site"
+
+    echo "(Re)deploying certs for $site."
+    cp -fv $site_cert_path/fullchain.pem $site_web_path/certs/
+    cp -fv $site_cert_path/privkey.pem $site_web_path/certs/
+	done
 
   start_stop_stack_by_script restart
   ;;

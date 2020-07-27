@@ -47,9 +47,6 @@
 ## Path to ngineerx specific config file for dehydrated
 #DEHYDRATED_CONF_FILE="$ngineerx_conf_dir/dehydrated_config"
 
-## Path to ngineerx specific hook.sh for dehydrated
-#dehydrated_hook_file="$ngineerx_conf_dir/dehydrated_hook.sh"
-
 ## Path to ngineerx specific domains.txt for dehydrated
 #DEHYDRATED_DOMAINS_TXT="$ngineerx_conf_dir/dehydrated_domains.txt"
 

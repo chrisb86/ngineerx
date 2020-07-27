@@ -2,6 +2,11 @@
 
 ## Changelog:
 
+**2020-07-27:**
+
+- Removed dehydrated hooks
+- Deploying certs is now handled by ngineerx itself.
+
 **2019-06-21:**
 
 - Completely rewritten in pure POSIX shell.
