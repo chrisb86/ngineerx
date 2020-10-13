@@ -99,6 +99,12 @@ chat () {
   fi
 }
 
+# Get config values from dehydrated
+# Usage: dehydrated_get_env CA|CERTDIR|ALPNCERTDIR|CHALLENGETYPE|DOMAINS_D|DOMAINS_TXT|HOOK|HOOK_CHAIN|RENEW_DAYS|ACCOUNT_KEY|ACCOUNT_KEY_JSON|ACCOUNT_ID_JSON|KEYSIZE|WELLKNOWN|PRIVATE_KEY_RENEW|OPENSSL_CNF|CONTACT_EMAIL|LOCKFILE
+dehydrated_get_env () {
+  $dehydrated --env | grep "typeset -g $1" | cut -f3 -d " " | cut -f2 -d "="
+}
+
 # Load config file and set default variables
 # Usage: init [CONFIGFILE]
 init () {
@@ -117,15 +123,15 @@ init () {
   ngineerx_flavour_dir="${NGINEERX_FLAVOUR_DIR:-$ngineerx_conf_dir/flavours}"
   ngineerx_webroot="${NGINEERX_WEBROOT:-$basedir/www/ngineerx}"
   ngineerx_temp_dir="${NGINEERX_TEMP_DIR:-/tmp/ngineerx}"
+  
   dehydrated="${DEHYDRATED:-$basedir/bin/dehydrated}"
-  dehydrated_conf_file="${DEHYDRATED_CONF_FILE:-$ngineerx_conf_dir/dehydrated_config}"
-	dehydrated_cert_dir="${DEHYDRATED_CERT_DIR:-$ngineerx_conf_dir/certs}"
-  dehydrated_hook_file="${dehydrated_hook_file:-$ngineerx_conf_dir/dehydrated_hook.sh}"
-  dehydrated_domains_txt="${DEHYDRATED_DOMAINS_TXT:-$ngineerx_conf_dir/dehydrated_domains.txt}"
-  dehydrated_webroot="${DEHYDRATED_WEBROOT:-$ngineerx_conf_dir/.acme-challenges}"
-  dehydrated_ca="${DEHYDRATED_CA:-https://acme-v02.api.letsencrypt.org/directory}"
-  dehydrated_args="${DEHYDRATED_ARGS:--f $dehydrated_conf_file}"
+	dehydrated_cert_dir=$(dehydrated_get_env CERTDIR)
+  dehydrated_hook_file=$(dehydrated_get_env HOOK)
+  dehydrated_domains_txt=$(dehydrated_get_env DOMAINS_TXT)
+  dehydrated_webroot=$(dehydrated_get_env WELLKNOWN)
+  dehydrated_args="${DEHYDRATED_ARGS:-}"
   dehydrated_args_install="${DEHYDRATED_ARGS:---register --accept-terms}"
+  
   newsyslog_conf_d="${NEWSYSLOG_CONF_D:-$basedir/etc/newsyslog.conf.d}"
   cron_conf_d="${CRON_CONF_D:-$basedir/etc/cron.d}"
   nginx_rc="${NGINX_RC:-$basedir/etc/rc.d/nginx}"
@@ -186,13 +192,30 @@ start_stop_stack_by_script () {
 }
 
 # Create certificates
-# Usage: create_cert domains DOMAINNAME [DOMAINNAME DOMAINNAME]
-create_cert () {
-  chat 2 "Creating certificates with $dehydrated"
+# Usage: cert_create domains DOMAINNAME [DOMAINNAME DOMAINNAME]
+cert_create () {
+  chat 0 "Creating certificates with $dehydrated"
   ## Add domains to domains.txt
   echo "$@" >> $dehydrated_domains_txt
   ## Run cron renewal and create new certs
-  $dehydrated ${dehydrated_args} -c
+  $dehydrated ${dehydrated_args} --cron
+}
+
+# (Re)deploy cetificates
+# Usage: cert_deploy
+cert_deploy () {
+  chat 0 "(Re)deploying certificates."
+  # Walk through our webroot and copy the latest certs to the sites cert directory
+  cd $ngineerx_webroot
+	for site in *
+	do
+    site_web_path="$ngineerx_webroot/$site"
+    site_cert_path="$dehydrated_cert_dir/$site"
+
+    chat 2 "(Re)deploying certs for $site."
+    cp -fv $site_cert_path/fullchain.pem $site_web_path/certs/
+    cp -fv $site_cert_path/privkey.pem $site_web_path/certs/
+	done
 }
 
 # Replace @@VARIABLENAME@@ inplace given default config file with $VARIABLENAME.
@@ -204,7 +227,7 @@ write_config() {
   chat 2 "Writing config file $conf_file"
 
   # Define the replacement patterns
-  replacements="@@nginx_dhkeysize@@=$nginx_dhkeysize @@basedir@@=$basedir @@dehydrated_webroot@@=$dehydrated_webroot @@dehydrated_domains_txt@@=$dehydrated_domains_txt @@dehydrated_hook_file@@=$dehydrated_hook_file @@dehydrated_ca@@=$dehydrated_ca @@ngineerx_conf_dir@@=$ngineerx_conf_dir @@ngineerx_webroot@@=$ngineerx_webroot @@nginx_rc@@=$nginx_rc @@nginx_conf_dir@@=$nginx_conf_dir @@nginx_includes_dir@@=$nginx_includes_dir @@nginx_user@@=$ngineerx_nginx_user @@nginx_pid_file@@=$nginx_pid_file @@php_pool_port@@=$ngineerx_php_pool_port @@phpfpm_user@@=$ngineerx_php_user @@phpfpm_rc@@=$phpfpm_rc @@phpfpm_conf_dir@@=$phpfpm_conf_d @@phpfpm_pid_file@@=$phpfpm_pid_file @@ngineerx_host_ip@@=$ngineerx_host_ip @@site_domain@@=$site_domain @@site_root@@=$site_root @@site_webroot@@=$site_webroot @@nginx_dh_file@@=$nginx_dh_file"
+  replacements="@@nginx_dhkeysize@@=$nginx_dhkeysize @@basedir@@=$basedir @@dehydrated_webroot@@=$dehydrated_webroot @@dehydrated_domains_txt@@=$dehydrated_domains_txt @@dehydrated_hook_file@@=$dehydrated_hook_file @@ngineerx_conf_dir@@=$ngineerx_conf_dir @@ngineerx_webroot@@=$ngineerx_webroot @@nginx_rc@@=$nginx_rc @@nginx_conf_dir@@=$nginx_conf_dir @@nginx_includes_dir@@=$nginx_includes_dir @@nginx_user@@=$ngineerx_nginx_user @@nginx_pid_file@@=$nginx_pid_file @@php_pool_port@@=$ngineerx_php_pool_port @@phpfpm_user@@=$ngineerx_php_user @@phpfpm_rc@@=$phpfpm_rc @@phpfpm_conf_dir@@=$phpfpm_conf_d @@phpfpm_pid_file@@=$phpfpm_pid_file @@ngineerx_host_ip@@=$ngineerx_host_ip @@site_domain@@=$site_domain @@site_root@@=$site_root @@site_webroot@@=$site_webroot @@nginx_dh_file@@=$nginx_dh_file"
 
   for f in ${replacements}; do
     search=`echo $f | cut -f 1 -d "="`
@@ -249,8 +272,6 @@ case "$1" in
   chat 2 "Copying template files to tmp"
   mkdir -p $ngineerx_temp_dir
   mkdir -p $ngineerx_temp_dir/ngineerx
-  cp $basedir/share/ngineerx/ngineerx/dehydrated_config $ngineerx_temp_dir/ngineerx/
-  cp $basedir/share/ngineerx/ngineerx/dehydrated_hook.sh $ngineerx_temp_dir/ngineerx/
   cp -r $basedir/share/ngineerx/nginx $ngineerx_temp_dir/
   cp -r $basedir/share/ngineerx/php* $ngineerx_temp_dir/
 
@@ -391,7 +412,9 @@ case "$1" in
   fi
 
   # Create the certs
-  create_cert $domains
+  cert_create $domains
+
+  cert_deploy
 
   # Set strong permissions to files and directories
   chat 0 "Setting strong permissions to files and directories."
@@ -493,16 +516,7 @@ case "$1" in
   chat 0 "Renewing certificates."
   $dehydrated ${dehydrated_args} --keep-going -c
 
-	cd $ngineerx_webroot
-	for site in *
-	do
-    site_web_path="$ngineerx_webroot/$site"
-    site_cert_path="$dehydrated_cert_dir/$site"
-
-    echo "(Re)deploying certs for $site."
-    cp -fv $site_cert_path/fullchain.pem $site_web_path/certs/
-    cp -fv $site_cert_path/privkey.pem $site_web_path/certs/
-	done
+  cert_deploy
 
   start_stop_stack_by_script restart
   ;;

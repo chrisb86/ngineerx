@@ -39,7 +39,7 @@ You need to enable SSL and HTTP2. Set the other options at your will.
 
 After that you can install ``PHP``. I like to compile ``php*-extensions`` because I can configure all needed modules and PHP will be installed as well.
 ```bash
-$ cd /usr/ports/lang/php73-extensions
+$ cd /usr/ports/lang/php74-extensions
 $ make install clean
 ```
 
@@ -67,7 +67,7 @@ Now we can install ngineerx.
 Clone the git repository to your machine.
 
 ```bash
-$ git clone https://github.com/chrisb86/ngineerx.git
+$ git clone https://git.debilux.org/ngineerx
 ```
 
 Install ngineerx:

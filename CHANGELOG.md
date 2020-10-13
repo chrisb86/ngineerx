@@ -2,6 +2,13 @@
 
 ## Changelog:
 
+**2020-10-13:**
+
+- Configure dehydrated in it's configdirectory  directly (eg. /usr/local/etc/dehydrated/config)
+- Removed most dehydrated config options from ngineerx
+- Fixed a bug where certs won't be deployed to sites certs directory when creating a site.
+- Updated README
+
 **2020-07-27:**
 
 - Removed dehydrated hooks

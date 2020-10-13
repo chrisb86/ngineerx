@@ -44,20 +44,8 @@
 ## Path to dehydrated binary
 #DEHYDRATED="/usr/local/bin/dehydrated"
 
-## Path to ngineerx specific config file for dehydrated
-#DEHYDRATED_CONF_FILE="$ngineerx_conf_dir/dehydrated_config"
-
-## Path to ngineerx specific domains.txt for dehydrated
-#DEHYDRATED_DOMAINS_TXT="$ngineerx_conf_dir/dehydrated_domains.txt"
-
-## Path to ngineerx specific acme challenges for dehydrated
-#DEHYDRATED_WEBROOT="$dehydrated_conf_dir/.acme-challenges"
-
-## Which ACME server to use with dehydrated
-#DEHYDRATED_CA="https://acme-v02.api.letsencrypt.org/directory"
-
 ## ngineerx specifig default arguments for dehydrated
-#DEHYDRATED_ARGS="-f $dehydrated_conf_file"
+#DEHYDRATED_ARGS=""
 
 ## ngineerx specifig default arguments for dehydrated during installation
 #DEHYDRATED_ARGS="--register --accept-terms"
