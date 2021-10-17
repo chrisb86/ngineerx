@@ -102,7 +102,7 @@ chat () {
 # Get config values from dehydrated
 # Usage: dehydrated_get_env CA|CERTDIR|ALPNCERTDIR|CHALLENGETYPE|DOMAINS_D|DOMAINS_TXT|HOOK|HOOK_CHAIN|RENEW_DAYS|ACCOUNT_KEY|ACCOUNT_KEY_JSON|ACCOUNT_ID_JSON|KEYSIZE|WELLKNOWN|PRIVATE_KEY_RENEW|OPENSSL_CNF|CONTACT_EMAIL|LOCKFILE
 dehydrated_get_env () {
-  $dehydrated --env | grep "typeset -g $1" | cut -f3 -d " " | cut -f2 -d "="
+  $dehydrated --env | grep "$1" | head -1 | cut -f3 -d " " | cut -f2 -d "=" | sed 's/"//g'
 }
 
 # Load config file and set default variables
