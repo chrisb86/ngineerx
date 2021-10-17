@@ -205,17 +205,25 @@ cert_create () {
 # Usage: cert_deploy
 cert_deploy () {
   chat 0 "(Re)deploying certificates."
-  # Walk through our webroot and copy the latest certs to the sites cert directory
-  cd $ngineerx_webroot
-	for site in *
-	do
-    site_web_path="$ngineerx_webroot/$site"
-    site_cert_path="$dehydrated_cert_dir/$site"
+  
+  cd $dehydrated_cert_dir
+  # Walk through cert dir and copy the latest certs to the sites cert directory
+  
+  for cert in *
+  do
+    if [ -d "$ngineerx_webroot/$cert" ]; then
+      site_web_path="$ngineerx_webroot/$cert/certs"
+      site_cert_path="$dehydrated_cert_dir/$cert"
+     else
+      site_web_path="/usr/local/etc/ssl/$cert"
+      site_cert_path="$dehydrated_cert_dir/$cert"
+      mkdir -p ${site_web_path}
+    fi
 
-    chat 2 "(Re)deploying certs for $site."
-    cp -fv $site_cert_path/fullchain.pem $site_web_path/certs/
-    cp -fv $site_cert_path/privkey.pem $site_web_path/certs/
-	done
+      chat 2 "(Re)deploying certs for $site."
+      cp -fv $site_cert_path/fullchain.pem $site_web_path/
+      cp -fv $site_cert_path/privkey.pem $site_web_path/
+   done
 }
 
 # Replace @@VARIABLENAME@@ inplace given default config file with $VARIABLENAME.
